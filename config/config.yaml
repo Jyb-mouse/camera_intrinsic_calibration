@@ -1,0 +1,61 @@
+################################### Developer use only ##############################
+threshold: 
+  min_pin_difference: 0.1          ### Minimum rate(%) of change in the pin translation of the pattern
+  min_area_scale: 0.6             ### Minimum rate(%) of change in the x-direction position of the pattern
+  min_area_difference: 0.005      ### Minimum rate(%) of change in the area of pattern
+  min_rotation_differnece: 0.3       ### Minimum rate(%) of change in the rotation of pattern
+  min_pattern_sharpness: 1000      ### Minimum of sharpness allowed of the pattern
+  max_pattern_moving_speed: 5.0   ### Maximum of movement speed allowed of the pattern
+  lambda: 1e-8
+  batch_size: 50
+
+base:
+  is_using_cv4: False             ### whether use opencv4 to detect corners
+  is_using_OR_calibrate: True     ### whether use the Object release method to calibrate
+  sum_images_need: 60             ### Number of images required
+  img_block_shape: (2, 3)
+  max_iter: 10                    ###
+
+RLS: # while preform RLS regulation for each camera
+  4mm: False
+  6mm: False
+  12mm: False
+  25mm: True
+
+debug:
+  viz: True
+  save: False
+  verbose: False
+###################################################################################
+
+
+
+
+#################################### User input ######################################
+camera:
+  img_shape: [1024, 576]
+  is_cam390: False
+  output_img_shape: [1024, 576] 
+  config: 25mm_lens_config.yaml
+  id: 3
+  flip_input_img: False           # *must, true only if the input images is vertically captured, e.g. for rear cameras.
+  flip_output_img: False          # *must, set true for horizontally calibrated camera but will be vertically installed.
+                                  #   e.g rear cams
+  ## please check the following usage to set params above ##
+  # capture horizontally, use horizontally: flip_input_img = False, flip_output_img = False
+  # capture horizontally, use vertically: flip_input_img = False, flip_output_img = True
+  # capture vertically, use horizontally: flip_input_img = True, flip_output_img = False
+  # capture vertically, use vertically: flip_input_img = True, flip_output_img = True 
+
+data:
+  input_method: rosbag
+  dataset_name: 
+  rosbag_name: /home/tusimple/Downloads/25mm_square.bag
+  output_dir: /home/tusimple/camera_intrisic_img_extracter/test
+  num_thread: 6
+
+pattern:
+  is_ring: False
+  pattern_shape: (6, 7)
+  corner_distance: 80
+################################################################################

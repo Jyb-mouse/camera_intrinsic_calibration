@@ -1,0 +1,11 @@
+<launch>
+  <arg name="cam_id" default="1"/>
+  <arg name="heartbeat_id" default="cam_intrinsic_calib"/>
+
+  <group>
+    <node name="cam_calib" pkg="cam_calibrator" type="node_cam_calibrator" output="screen"/>
+      <param name="heartbeat_id" value="$(heartbeat_id)"/>
+      <param name="cam_id" value="$(cam_id)"/>
+    </node>  
+  </group>
+</launch>
