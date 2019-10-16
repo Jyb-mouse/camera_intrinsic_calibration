@@ -18,7 +18,7 @@ class PatternInfo:
 
     def __init__(self, cfg_path):
         if cfg_path is None:
-            cfg_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
+            cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
         cfg = yaml.safe_load(open(cfg_path, 'r'))
 
         base_cfg = cfg.get('base')
@@ -118,7 +118,8 @@ class PatternInfo:
             img_shape[0], img_shape[1] = img_shape[1], img_shape[0]
 
         center = np.sum(self._get_vertex_corners(corners), axis=0) / 4
-        lable = int(center[1] / img_shape[1] * block_shape[0]) * block_shape[1]  + int(center[0] / img_shape[0] * block_shape[1] + 1)
+        lable = int(center[1] / img_shape[1] * block_shape[0]) * block_shape[1] + \
+                int(center[0] / img_shape[0] * block_shape[1] + 1)
         if lable < 1 or lable > (block_shape[0] * block_shape[1]):
             return 0
         return lable

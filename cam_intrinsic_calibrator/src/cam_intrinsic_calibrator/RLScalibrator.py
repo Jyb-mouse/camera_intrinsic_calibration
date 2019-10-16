@@ -31,7 +31,7 @@ class RLScalibrator:
 
     def __init__(self, cfg_path):
         if cfg_path is None:
-            cfg_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
+            cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
         cfg = yaml.safe_load(open(cfg_path, 'r'))
 
         self.cali_crit = self._build_term_crit(self.calib_crit)

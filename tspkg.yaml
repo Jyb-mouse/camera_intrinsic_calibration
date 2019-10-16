@@ -5,14 +5,16 @@ deps:
   opencv: any
   middleware: any
 
+extra_deps:
+pip2: numpy pyyaml rosbag matplotlib sklearn
 
-  build: 
-    pushd cam_intrinsic_calibrator
-      install_python 3 src/cam_intrinsic_calibrator
-      install launch/* launch/cam_intrinsic_calibrator/
-      install scripts/* lib/cam_intrinsic_calibrator/
-      install configs/* share/cam_intrinsic_calibrator/configs/
-      index_zoro_pkg
-    popd
-    compile_python
-    install_octopus_app
+build: 
+  pushd cam_intrinsic_calibrator
+    install_python 3 src/cam_intrinsic_calibrator
+    install launch/* launch/cam_intrinsic_calibrator/
+    install scripts/* lib/cam_intrinsic_calibrator/
+    install configs/* share/cam_intrinsic_calibrator/configs/
+    index_zoro_pkg
+  popd
+  compile_python
+  install_octopus_app

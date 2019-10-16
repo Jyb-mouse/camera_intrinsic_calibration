@@ -1,0 +1,7 @@
+cam_intrinsic_calibrator:
+  launch_file_path: launch/camera_intrinsic_autocalibrator.launch
+  cmd: zoro launch cam_intrinsic_calibrator camera_intrinsic_autocalibrator.launch
+  module: util
+
+  args:
+    
