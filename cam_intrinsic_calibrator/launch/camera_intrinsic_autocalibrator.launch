@@ -1,11 +1,20 @@
 <launch>
+  <arg name="ns" default="" />
+  <arg name="OPENBLAS_NUM_THREADS" default="1" />
+  <env name='OPENBLAS_NUM_THREADS' value='$(arg OPENBLAS_NUM_THREADS)' />
+  <arg name="server" default="localhost"/>
+  <arg name="port" default="22"/>
+  <arg name="user" default=""/>
+  <arg name="env_loader" default="~/.octopus/config/env_loaders/octopus.env.sh"/>
+  <arg name="heartbeat_id" default="system_monitor"/>
+  <arg name="server_b" default="False"/>
   <arg name="cam_id" default="1"/>
-  <arg name="heartbeat_id" default="cam_intrinsic_calib"/>
-
+  <arg mame="is_cam390" default="False"/>
   <group>
     <node name="cam_calib" pkg="cam_intrinsic_calibrator" type="node_cam_intrinsic_calibrator" output="screen"/>
       <param name="heartbeat_id" value="$(heartbeat_id)"/>
       <param name="cam_id" value="$(cam_id)"/>
+      <param name="is_cam390" value="$(is_cam390)">
     </node>  
   </group>
 </launch>

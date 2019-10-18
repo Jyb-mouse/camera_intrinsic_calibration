@@ -9,13 +9,10 @@ import middleware as mw
 from dataset_store import Dataset
 from queue import Queue
 
-from sensor_msgs.msg import CompressedImage
-from geometry_msgs.msg import PoseStamped
-
 from patternInfo import PatternInfo
 from board import ChessBoard
 
-class ImgExtracter:
+class ImgExtracter(object):
     camera_topic_390 = '/camera{}/image_color/compressed'
     camera_topic_pg = '/camera{}/image_color/compressed'
 
@@ -42,7 +39,7 @@ class ImgExtracter:
         self.data_cfg = cfg.get('data')
         self.input_method = self.data_cfg.get('input_method')
         self.dataset_name = self.data_cfg.get('dataset_name')
-        self.using_rosbag = self.data_cfg.get('using_rosbag', True)
+        self.using_rosbag = self.data_cfg.get('using_rosbag', False)
         self.rosbag_path = self.data_cfg.get('rosbag_name')
         self.dir_output = self.data_cfg.get('output_dir')
 
@@ -116,28 +113,17 @@ class ImgExtracter:
             if os.path.exists(output_dir):
                 if len(os.listdir(output_dir)) > 0:
                     print 'The folder {} is NOT empty\n' \
-                          'Would you like to delete the data? (Y/N)'.format(output_dir)
-                    to_delete = str(raw_input()).lower()
-                    if to_delete == 'y':
-                        for p in os.listdir(output_dir):
-                            path = os.path.join(output_dir, p)
-                            if os.path.isdir(path):
-                                shutil.rmtree(path)
-                            elif os.path.isfile(path):
-                                os.remove(path)
-                            else:
-                                print 'Unknown type: {}'.format(path)
-                    else:
-                        for p in os.listdir(output_dir):
-                            if p != 'imgs' and p != 'homo.pkl':
-                                path = os.path.join(output_dir, p)
-                                if os.path.isdir(path):
-                                    shutil.rmtree(path)
-                                elif os.path.isfile(path):
-                                    os.remove(path)
-                                else:
-                                    print 'Unknown type: {}'.format(path)
-                        to_reset = False
+                          'There is going to delete the data'.format(output_dir)
+                    for p in os.listdir(output_dir):
+                        path = os.path.join(output_dir, p)
+                        if os.path.isdir(path):
+                            shutil.rmtree(path)
+                        elif os.path.isfile(path):
+                            os.remove(path)
+                        else:
+                            print 'Unknown type: {}'.format(path)
+                # else:
+                #     to_reset = False
             else:
                 os.makedirs(output_dir)
         return to_reset
@@ -251,8 +237,7 @@ class ImgExtracter:
         pt0[1] = pt1[1] - int(img_shape[1] / img_block_shape[0])
         return pt0.astype(int), pt1.astype(int)
     
-    @staticmethod
-    def _get_img_block_sum(img_block_shape):
+    def _get_img_block_sum(self, img_block_shape):
         """
         return image block sum
         """
@@ -289,15 +274,6 @@ class ImgExtracter:
                         (0,0,255),
                         -1)
         return img
-
-    def _setup_subscriber(self):
-        img_sub = mw.Subscriber(self.img_topic, 
-                                CompressedImage,
-                                monitored=False)
-        
-        sub_lst = [img_sub]
-
-        self.inputs = mw.SmartMixer(*sub_lst)
 
     
     def extract_img_from_rosbag(self):
@@ -421,38 +397,9 @@ class ImgExtracter:
         cv.imshow("img", img_show)
         cv.waitKey(10)
 
-        
-        
-    def setup(self, cfg):
-        cam_topic = self.camera_topic_390 if self.is_cam390 else self.camera_topic_pg
-        self.cam_data_topic = cam_topic.format(self.cam_id)
 
-        # sub node
-        self._setup_subscriber()
-
-        # start
-        mw.run_handler_async(self.inputs,
-                             self.img_extract_from_topic,
-                             fetch_option=dict(max_age=0.03),
-                             monitored=True)
-        
-    def img_extract(self):
-        if self.using_rosbag:
-            corners_list, img_names, img_shape = self.extract_img_from_rosbag()
-        else:
-            self.setup()
-            mw.start_heartbeat()
-            mw.spin()
-            mw.shutdown()
-            corners_list = np.array(self._corners_list)
-            img_names = np.array(self._img_names)
-            img_shape = self.img_shape
-        return corners_list, img_names, img_shape
-
-
-
-# for test:
-if __name__ == '__main__':
-    from img_extracter import ImgExtracter
-    imgextracter = ImgExtracter(None)
-    corners_list, img_names, img_shape = imgextracter.img_extract()
+# # for test:
+# if __name__ == '__main__':
+#     from img_extracter import ImgExtracter
+#     imgextracter = ImgExtracter(None)
+#     corners_list, img_names, img_shape = imgextracter.img_extract()

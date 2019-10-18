@@ -12,15 +12,15 @@ threshold:
 base:
   is_using_cv4: False             ### whether use opencv4 to detect corners
   is_using_OR_calibrate: True     ### whether use the Object release method to calibrate
-  sum_images_need: 60             ### Number of images required
+  sum_images_need: 72             ### Number of images required
   img_block_shape: (2, 3)
-  max_iter: 10                    ###
+  max_iter: 5                    ###
 
 RLS: # while preform RLS regulation for each camera
   4mm: False
   6mm: False
   12mm: False
-  25mm: True
+  25mm: False
 
 debug:
   viz: True
@@ -35,8 +35,7 @@ debug:
 camera:
   img_shape: [1024, 576]
   is_cam390: False
-  output_img_shape: [1024, 576] 
-  config: 25mm_lens_config.yaml
+  output_img_shape: [1024, 576]
   id: 3
   flip_input_img: False           # *must, true only if the input images is vertically captured, e.g. for rear cameras.
   flip_output_img: False          # *must, set true for horizontally calibrated camera but will be vertically installed.

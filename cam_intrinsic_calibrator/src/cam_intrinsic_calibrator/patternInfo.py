@@ -12,7 +12,9 @@ from board import ChessBoard, RingBoard
 
 class PatternInfo:
     #findChessboardCornersSB()
-    corner_flags_cv4 = cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_EXHAUSTIVE + cv.CALIB_CB_ACCURACY
+    # TODO: Temporarily does not support cv4
+    corner_flags_cv4 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE
+    #corner_flags_cv4 = cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_EXHAUSTIVE + cv.CALIB_CB_ACCURACY
     #findChessboardCorners()
     corner_flags_cv2 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE
 

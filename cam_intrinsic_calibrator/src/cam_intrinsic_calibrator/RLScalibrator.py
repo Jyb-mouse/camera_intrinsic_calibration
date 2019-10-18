@@ -12,20 +12,18 @@ from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
 from util import save_params, outliers_iqr, outliers_norm_std
+from RLSimgextractor import RLSImgExtractor
 from img_extracter import ImgExtracter
 
 import detector_util as util
 
 class RLScalibrator:
-    confs_find_cb = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE
-    confs_find_cb_SB = cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_EXHAUSTIVE + cv.CALIB_CB_ACCURACY
-
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
 
     cali_flags = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_ZERO_TANGENT_DIST + \
                  cv.CALIB_FIX_K3 + cv.CALIB_FIX_K4 
     calib_crit = [100, 1e-5]
-    criteria=(cv.TERM_CRITERIA_EPS+cv.TERM_CRITERIA_MAX_ITER,30,0.000001)
+    criteria=(cv.TERM_CRITERIA_EPS+cv.TERM_CRITERIA_MAX_ITER, 30, 0.000001)
 
     min_num_img_todo_sampling = 200
 
@@ -42,7 +40,7 @@ class RLScalibrator:
 
         base_cfg = cfg.get('base')
         self.max_iter = base_cfg.get('max_iter')
-        self._img_extracter = ImgExtracter(cfg_path)
+        self._RLSimgextracter = RLSImgExtractor(cfg_path)
         self.is_using_OR_calibrate = base_cfg.get('is_using_OR_calibrate')
 
         self.RLS_cfg = cfg.get('RLS')
@@ -59,7 +57,20 @@ class RLScalibrator:
         self.output_img_shape = camera_cfg.get('output_img_shape')
         self.flip_input_img = camera_cfg.get('flip_input_img')
         self.flip_output_img = camera_cfg.get('flip_output_img')
-        cam_cfg_path = os.path.join(os.path.dirname(cfg_path), cfg.get('camera').get('config'))
+        if self.cam_id in [6, 7]:
+            self.flip_input_img = True
+            self.flip_output_img = True
+        if self.cam_id in [1, 14, 15]:
+            camera_cfg_name = "4mm_lens_config_390.yaml" if self.is_cam390 else \
+                               "4mm_lens_config.yaml"
+        elif self.cam_id in [3, 6, 7, 12, 13]:
+            camera_cfg_name = "12mm_lens_config_390.yaml" if self.is_cam390 else \
+                               "12mm_lens_config.yaml"
+        elif self.cam_id in [4, 17]:
+            camera_cfg_name = "25mm_lens_config_390.yaml" if self.is_cam390 else \
+                               "25mm_lens_config.yaml"
+        camera_cfg_name = "25mm_lens_config.yaml"
+        cam_cfg_path = os.path.join(os.path.dirname(cfg_path), camera_cfg_name)
         self.cam_config = yaml.safe_load(open(cam_cfg_path, 'r'))
 
         data_cfg = cfg.get('data')
@@ -532,14 +543,15 @@ class RLScalibrator:
                                [0, 0, 1]])
         if self.is_using_OR_calibrate:
             RLScalibrator.iFixedPoint = len(corners_x[0]) - 2
+        newObPoints = None
         # print RLSCalibrator.iFixedPoint int(len(corners_x) - 3)
         # NOTE:there is a bug in function calibrateCameraRO() of opencv4 when iFixedPoint>0
-        ret, k, distort, rvecs, tvecs, newObPoints = \
-           cv.calibrateCameraRO(corners_x, corners_y, img_shape, -1, init_k_mat, None,
-                              flags=self.cali_flags, criteria=self.cali_crit)
-        # ret, k, distort, rvecs, tvecs = \
-        #     cv.calibrateCamera(corners_x, corners_y, img_shape, init_k_mat, None,
-        #                        flags=self.cali_flags, criteria=self.cali_crit)
+        # ret, k, distort, rvecs, tvecs, newObPoints = \
+        #    cv.calibrateCameraRO(corners_x, corners_y, img_shape, -1, init_k_mat, None,
+        #                       flags=self.cali_flags, criteria=self.cali_crit)
+        ret, k, distort, rvecs, tvecs = \
+            cv.calibrateCamera(corners_x, corners_y, img_shape, init_k_mat, None,
+                               flags=self.cali_flags, criteria=self.cali_crit)
         return ret, k, distort, rvecs, tvecs, newObPoints
 
     def filter_by_reprojection_error(self, homographies, corners,
@@ -618,7 +630,7 @@ class RLScalibrator:
         success= False
 
         print 'start to extract image...'   
-        corners_list, img_names, img_shape = self._img_extracter.extract_img_from_rosbag()
+        corners_list, img_names, img_shape = self._RLSimgextracter.img_extract()
         corners_coords = self._get_corner_coords(len(corners_list))
         homographies = util.compute_homographies(corners_coords, corners_list)
         corners = [corners_coords, corners_list]
@@ -666,7 +678,7 @@ class RLScalibrator:
             print '----------------------'
 
         print 'saving intrinsic parameters...'
-        save_params(self.data_dir, self._img_extracter._bag_name, self.cam_id, opt_k, opt_distortion,
+        save_params(self.data_dir, self.img_extracter._bag_name, self.cam_id, opt_k, opt_distortion,
                     img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, self.cam_config.get('focal_length'))
 
         return opt_k, opt_distortion, img_shape
@@ -675,6 +687,6 @@ class RLScalibrator:
 ## for test
 if __name__ == '__main__':
     from RLScalibrator import RLScalibrator
-
-    rls_calib = RLScalibrator(None)
+    cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
+    rls_calib = RLScalibrator(cfg_path)
     rls_calib.calibrate()
