@@ -1,10 +1,10 @@
 ################################### Developer use only ##############################
 threshold: 
   min_pin_difference: 0.1          ### Minimum rate(%) of change in the pin translation of the pattern
-  min_area_scale: 0.6             ### Minimum rate(%) of change in the x-direction position of the pattern
+  min_area_scale: 0.2             ### Minimum rate(%) of change in the x-direction position of the pattern
   min_area_difference: 0.005      ### Minimum rate(%) of change in the area of pattern
   min_rotation_differnece: 0.3       ### Minimum rate(%) of change in the rotation of pattern
-  min_pattern_sharpness: 1000      ### Minimum of sharpness allowed of the pattern
+  min_pattern_sharpness: 0.5      ### Minimum of sharpness allowed of the pattern
   max_pattern_moving_speed: 5.0   ### Maximum of movement speed allowed of the pattern
   lambda: 1e-8
   batch_size: 50
@@ -14,7 +14,7 @@ base:
   is_using_OR_calibrate: True     ### whether use the Object release method to calibrate
   sum_images_need: 72             ### Number of images required
   img_block_shape: (2, 3)
-  max_iter: 5                    ###
+  max_iter: 2                    ###
 
 RLS: # while preform RLS regulation for each camera
   4mm: False
@@ -48,7 +48,7 @@ camera:
 
 data:
   input_method: rosbag
-  dataset_name: 
+  dataset_name: 2019-10-10-14-17-33 
   rosbag_name: /home/tusimple/Downloads/25mm_square.bag
   output_dir: /home/tusimple/camera_intrisic_img_extracter/test
   num_thread: 6

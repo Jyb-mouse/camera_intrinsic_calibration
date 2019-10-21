@@ -12,7 +12,6 @@ from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
 from util import save_params, outliers_iqr, outliers_norm_std
-from RLSimgextractor import RLSImgExtractor
 from img_extracter import ImgExtracter
 
 import detector_util as util
@@ -40,7 +39,6 @@ class RLScalibrator:
 
         base_cfg = cfg.get('base')
         self.max_iter = base_cfg.get('max_iter')
-        self._RLSimgextracter = RLSImgExtractor(cfg_path)
         self.is_using_OR_calibrate = base_cfg.get('is_using_OR_calibrate')
 
         self.RLS_cfg = cfg.get('RLS')
@@ -57,6 +55,10 @@ class RLScalibrator:
         self.output_img_shape = camera_cfg.get('output_img_shape')
         self.flip_input_img = camera_cfg.get('flip_input_img')
         self.flip_output_img = camera_cfg.get('flip_output_img')
+        if self.is_cam390:
+            self.output_img_shape = [960, 540]
+        else:
+            self.output_img_shape = [1024,576]
         if self.cam_id in [6, 7]:
             self.flip_input_img = True
             self.flip_output_img = True
@@ -69,7 +71,6 @@ class RLScalibrator:
         elif self.cam_id in [4, 17]:
             camera_cfg_name = "25mm_lens_config_390.yaml" if self.is_cam390 else \
                                "25mm_lens_config.yaml"
-        camera_cfg_name = "25mm_lens_config.yaml"
         cam_cfg_path = os.path.join(os.path.dirname(cfg_path), camera_cfg_name)
         self.cam_config = yaml.safe_load(open(cam_cfg_path, 'r'))
 
@@ -630,11 +631,12 @@ class RLScalibrator:
         success= False
 
         print 'start to extract image...'   
-        corners_list, img_names, img_shape = self._RLSimgextracter.img_extract()
+        corners_list, img_names, img_shape = self.img_extracter.img_extract()
         corners_coords = self._get_corner_coords(len(corners_list))
         homographies = util.compute_homographies(corners_coords, corners_list)
         corners = [corners_coords, corners_list]
 
+        print 'start to calibrate camera intrinsic params...'
         print '-----------initial  K------------'
         init_k_params, init_k_mat = self._compute_init_guess_intrinsic(self.cam_config, img_shape, self.flip_input_img)
         print init_k_mat
@@ -679,7 +681,8 @@ class RLScalibrator:
 
         print 'saving intrinsic parameters...'
         save_params(self.data_dir, self.img_extracter._bag_name, self.cam_id, opt_k, opt_distortion,
-                    img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, self.cam_config.get('focal_length'))
+                    img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, 
+                    self.cam_config.get('focal_length'))
 
         return opt_k, opt_distortion, img_shape
 

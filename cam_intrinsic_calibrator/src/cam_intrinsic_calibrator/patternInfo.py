@@ -4,6 +4,7 @@ import yaml
 import cv2 as cv
 import numpy as np
 import math
+import scipy.ndimage
 from io import BytesIO
 
 from board import ChessBoard, RingBoard
@@ -148,6 +149,107 @@ class PatternInfo:
         _img_roi = img[top:bottom, left:right, :]
         return _img_roi
 
+    @staticmethod
+    def _sharpness_estimation(img, sharpness_threshold=2.5):
+        """
+        [1] J. Kumar, F. Chen and D. Doermann. Sharpness Estimation for Document and Scene Images, ICPR, 2012.
+        :param img:
+        :param sharpness_threshold:
+        :return:
+        """
+        thresh = 0.0001
+        half_w_size = 3
+        if len(img.shape) == 3:
+            img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        img = img.astype(np.float64)
+        height = img.shape[0]
+        width = img.shape[1]
+
+        # init mat
+        DoMx = np.zeros((height, width))
+        Gradx = np.zeros((height, width))
+        DoMy = np.zeros((height, width))
+        Grady = np.zeros((height, width))
+
+        # dom compute
+        DoMx[:, 2:-2] = img[:, 0:-4] + img[:, 4:] - 2 * img[:, 2:-2]
+        DoMy[2:-2, :] = img[0:-4, :] + img[4:, :] - 2 * img[2:-2, :]
+        Gradx[:, 2:-2] = img[:, 2:-2] - img[:, 1:-3]
+        Grady[2:-2, :] = img[2:-2, :] - img[1:-3, :]
+
+        DoMx = np.absolute(DoMx)
+        DoMy = np.absolute(DoMy)
+        Gradx = np.absolute(Gradx)
+        Grady = np.absolute(Grady)
+
+        # filter
+        x_filter = np.array([[0.5, 0, -0.5]])
+        y_filter = np.array([[0.5, 0, -0.5]]).T
+        imgx = scipy.ndimage.correlate(img, x_filter, mode='nearest')
+        imgx[0, :] = 0
+        imgx[-1, :] = 0
+        imgx[:, 0] = 0
+        imgx[:, -1] = 0
+        imgx = np.absolute(imgx)
+        imgx = imgx / np.max(imgx)
+        imgx = imgx > thresh
+        edge_pixel_x = np.count_nonzero(imgx)
+
+        imgy = scipy.ndimage.correlate(img, y_filter, mode='nearest')
+        imgy[0, :] = 0
+        imgy[-1, :] = 0
+        imgy[:, 0] = 0
+        imgy[:, -1] = 0
+        imgy = np.absolute(imgy)
+        imgy = imgy / np.max(imgy)
+        imgy = imgy > thresh
+        edge_pixel_y = np.count_nonzero(imgy)
+
+        # compute sharpness
+        imgx2 = imgx.copy()
+        imgx2[0:half_w_size, :] = 0
+        imgx2[-half_w_size:, :] = 0
+        imgx2[:, 0:half_w_size] = 0
+        imgx2[:, -half_w_size:] = 0
+        idx1 = np.nonzero(imgx2)
+        idx1 = idx1[1] * imgx2.shape[0] + idx1[0]
+        idx1.sort()
+        idx1 = idx1.reshape((len(idx1), 1)) + 1
+        idx2 = np.arange(-half_w_size, half_w_size + 1) * height
+        idx2 = idx2.reshape((len(idx2), 1))
+        idx3 = np.tile(idx1.T, np.array([len(idx2), 1])) + np.tile(idx2, np.array([1, len(idx1)])) - 1
+        tmp1 = np.sum(np.array([DoMx.flatten('F')[idx3[i, :]] for i in xrange(idx3.shape[0])]), axis=0)
+        tmp2 = np.sum(np.array([Gradx.flatten('F')[idx3[i, :]] for i in xrange(idx3.shape[0])]), axis=0)
+        idx = np.nonzero(tmp2)
+        sx_nz = np.absolute(tmp1[idx] / tmp2[idx])
+
+        imgy2 = imgy.copy()
+        imgy2[0:half_w_size, :] = 0
+        imgy2[-half_w_size:, :] = 0
+        imgy2[:, 0:half_w_size] = 0
+        imgy2[:, -half_w_size:] = 0
+        idx1 = np.nonzero(imgy2)
+        idx1 = idx1[1] * imgy2.shape[0] + idx1[0]
+        idx1.sort()
+        idx1 = idx1.reshape((len(idx1), 1)) + 1
+        idx2 = np.arange(-half_w_size, half_w_size + 1)
+        idx2 = idx2.reshape((len(idx2), 1))
+        idx3 = np.tile(idx1.T, np.array([len(idx2), 1])) + np.tile(idx2, np.array([1, len(idx1)])) - 1
+        tmp1 = np.sum(np.array([DoMy.flatten('F')[idx3[i, :]] for i in xrange(idx3.shape[0])]), axis=0)
+        tmp2 = np.sum(np.array([Grady.flatten('F')[idx3[i, :]] for i in xrange(idx3.shape[0])]), axis=0)
+        idx = np.nonzero(tmp2)
+        sy_nz = np.absolute(tmp1[idx] / tmp2[idx])
+
+        # rx, ry
+        sharp_pixel_x = np.count_nonzero(sx_nz > sharpness_threshold)
+        sharp_pixel_y = np.count_nonzero(sy_nz > sharpness_threshold)
+
+        rx = float(sharp_pixel_x) / edge_pixel_x
+        ry = float(sharp_pixel_y) / edge_pixel_y
+
+        sharpness = np.sqrt(rx ** 2 + ry ** 2)
+        return sharpness
+
     def _get_pattren_sharpness(self, img, corners):
         """
         return the sharpness of the pattern area in the image 
@@ -157,7 +259,8 @@ class PatternInfo:
             gray_roi = cv.cvtColor(img_roi, cv.COLOR_BGR2GRAY)
         else:
             gray_roi = img_roi
-        sharpness = cv.Laplacian(gray_roi, cv.CV_64F).var()
+        sharpness = self._sharpness_estimation(img_roi)
+        #sharpness = cv.Laplacian(gray_roi, cv.CV_64F).var()
         return sharpness
 
     def _get_corners(self, img):
@@ -236,7 +339,7 @@ class PatternInfo:
         area_scale = math.sqrt(area / (width * height))
         skew = self._get_pattrern_skew(corners)
         rotate = self._get_pattern_rotate(corners)
-        sharpness = self._get_pattren_sharpness(img, corners) / area_scale
+        sharpness = self._get_pattren_sharpness(img, corners)
         lable = self._get_pattern_loc_lable(corners, [width, height], block_shape)
         params = [loc_X, loc_Y, skew, rotate, area_scale, sharpness, lable]
 

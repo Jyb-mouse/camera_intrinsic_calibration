@@ -4,6 +4,7 @@ version: __from_changelog__
 deps:
   opencv: any
   middleware: any
+  dataset_store: any
 
 extra_deps:
 pip2: numpy pyyaml rosbag matplotlib sklearn

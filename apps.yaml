@@ -4,4 +4,36 @@ cam_intrinsic_calibrator:
   module: util
 
   args:
-    
+    cam_id: 
+      - 1
+      - 3
+      - 4
+      - 6
+      - 7
+      - 15
+      - 17
+    is_cam390:
+      - True
+      - False
+    is_using_rosbag:
+      - True
+      - False
+  
+  in_topics:
+    - /camera1/image_color/compressed
+    - /camera3/image_color/compressed
+    - /camera4/image_color/compressed
+    - /camera6/image_color/compressed
+    - /camera7/image_color/compressed
+    - /camera15/image_color/compressed
+    - /camera17/image_color/compressed
+  
+  out_topics:
+    - /camera1/img_extact/compressed
+    - /camera3/img_extact/compressed
+    - /camera4/img_extact/compressed
+    - /camera6/img_extact/compressed
+    - /camera7/img_extact/compressed
+    - /camera15/img_extact/compressed
+    - /camera17/img_extact/compressed
+  

@@ -10,6 +10,7 @@
   <arg name="server_b" default="False"/>
   <arg name="cam_id" default="1"/>
   <arg mame="is_cam390" default="False"/>
+  <srg name="is_using_rosag" default="False"/>
   <group>
     <node name="cam_calib" pkg="cam_intrinsic_calibrator" type="node_cam_intrinsic_calibrator" output="screen"/>
       <param name="heartbeat_id" value="$(heartbeat_id)"/>
