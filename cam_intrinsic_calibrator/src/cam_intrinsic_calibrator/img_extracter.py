@@ -2,25 +2,26 @@ import os
 import yaml
 import math
 import copy
+import time
 import shutil
-import rosbag
 import cv2 as cv
 import numpy as np
 import middleware as mw 
 from dataset_store import Dataset
 
-from sensor_msgs.msg import CompressedImage
-from geometry_msgs.msg import PoseStamped
-
 from patternInfo import PatternInfo
 from board import ChessBoard
 from util import time2secs
 
-class ImgExtracter():
+class ImgExtracter(object):
     camera_topic_390 = '/camera{}/image_color/compressed'
     camera_topic_pg = '/camera{}/image_color/compressed'
 
     def __init__(self, cfg_path):
+
+        ## init param from mw
+        self.cam_id = mw.get_param('~cam_id', 1)
+        self.is_cam390 = mw.get_param('~is_cam390', False)
 
         #init param from chonfig
         if cfg_path is None:
@@ -40,17 +41,15 @@ class ImgExtracter():
         self.sum_images_need = base_cfg.get('sum_images_need', 120)
         self.img_block_shape = eval(base_cfg.get('img_block_shape'))
 
-        self.data_cfg = cfg.get('data')
-        self.input_method = self.data_cfg.get('input_method')
-        self.dataset_name = self.data_cfg.get('dataset_name')
-        self.is_using_rosbag = self.data_cfg.get('using_rosbag', True)
-        self.rosbag_path = self.data_cfg.get('rosbag_name')
-        self.dir_output = self.data_cfg.get('output_dir')
+        data_cfg = cfg.get('data')
+        self.input_method = data_cfg.get('input_method')
+        self.dataset_name = data_cfg.get('dataset_name')
+        self.dir_output = data_cfg.get('output_dir')
 
         camera_cfg = cfg.get('camera')
-        self.is_cam390 = camera_cfg.get('is_cam390', False)
-        self.cam_id = camera_cfg.get('id')
-        self.img_shape = camera_cfg.get('img_shape')
+        if self.input_method == 'dataset':
+            self.is_cam390 = camera_cfg.get('is_cam390', False)
+            self.cam_id = camera_cfg.get('id')
 
         pattern_cfg = cfg.get('pattern')
         self.is_ring = pattern_cfg.get('is_ring', False)
@@ -69,10 +68,11 @@ class ImgExtracter():
             print ('Please enter the path of output at config/data/output_dir')
             sys.exit()
         self.output_dir = None
-        if self.input_method == 'rosbag':
-            self._bag_name = os.path.basename(self.rosbag_path).split('.')[0]
-        elif self.input_method == 'dataset':
+        if self.input_method == 'dataset':
             self._bag_name = self.dataset_name
+        elif self.input_method == 'topic':
+            time_str =time.strftime('%Y-%m-%d-%H-%M', time.localtime(time.time()))
+            self._bag_name = time_str
         else:
             raise Exception('get no input method!')
 
@@ -85,32 +85,27 @@ class ImgExtracter():
         self.img_topic = self.camera_topic_390.format(self.cam_id) if self.is_cam390 else self.camera_topic_pg.format(
                                                      self.cam_id)
 
-        ## init param from mw
-        #self.cam_id = mw.get_param('~cam_id', 1)
-
         self._extract_img_params_init()
 
     def _extract_img_params_init(self):
         self.block_sum = self._get_img_block_sum(self.img_block_shape)
         self.each_block_img_sum = int(self.sum_images_need / self.block_sum)
 
-        # (1,2) to (2,2) to (2,3)
-        self.img_block_row = 1.5
-        self.img_block_col = 2.0
-        self.imgs_block_count = np.zeros(int(self.img_block_row) * \
-                                         int(self.img_block_col)).astype(int)
-
         # check path
         self.img_path = os.path.join(self.output_dir, 'imgs/')
         if not os.path.exists(self.img_path):
             os.makedirs(self.img_path)
         
-        # new list 
-        self._corners_list = []
-        self._params_list = []
-        self._img_names = []
-        self._last_corners = []
+        # set global params
         self._last_params = []
+        self._last_corners = []
+        self._params_list = []
+        self._corners_list = []
+        self._cur_img_block_row = 1.5 #  1 to 2 to 2
+        self._cur_img_block_col = 2.5 #  2 to 2 to 3
+        self._img_names = []
+        self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col))
+        self.img_shape = np.zeros(2)
 
     @staticmethod
     def _clearup_folder(output_dir):
@@ -118,8 +113,8 @@ class ImgExtracter():
         if output_dir is not None:
             if os.path.exists(output_dir):
                 if len(os.listdir(output_dir)) > 0:
-                    print 'The folder {} is NOT empty\n' \
-                          'There is going to delete the data'.format(output_dir)
+                    print ('The folder {} is NOT empty\n' 
+                          'There is going to delete the data'.format(output_dir))
                     for p in os.listdir(output_dir):
                         path = os.path.join(output_dir, p)
                         if os.path.isdir(path):
@@ -127,7 +122,7 @@ class ImgExtracter():
                         elif os.path.isfile(path):
                             os.remove(path)
                         else:
-                            print 'Unknown type: {}'.format(path)
+                            print ('Unknown type: {}'.format(path))
                 # else:
                 #     to_reset = False
             else:
@@ -244,149 +239,90 @@ class ImgExtracter():
                         -1)
         return img
 
-    def _draw_satisfied_img_block(self, img, pt0, pt1):
+    @staticmethod
+    def _draw_satisfied_img_block(img, img_shape, img_block_row, pt0, pt1):
         p0 = tuple(pt0)
         p1 = tuple(pt1)
         cv.rectangle(img, p0, p1, (0,0,255), 2)  
         cv.line(img, p0, p1, (0,0,255), 2)
         cv.line(img, 
-                (pt0[0], pt0[1]+int(self.img_shape[1]/int(self.img_block_row))), 
-                (pt1[0], pt1[1]-int(self.img_shape[1]/int(self.img_block_row))), 
+                (pt0[0], pt0[1]+int(img_shape[1]/int(img_block_row))), 
+                (pt1[0], pt1[1]-int(img_shape[1]/int(img_block_row))), 
                 (0,0,255), 
                 2)
         return img
-
-    def _extract_img_from_rosbag(self):
-        print '\tDump imgs from rosbag...'
-
-        bag = rosbag.Bag(self.rosbag_path)
-        for topic, msg, ts in bag.read_messages(topics=[self.img_topic]):
-            img = cv.imdecode(np.fromstring(msg.data, 
-                                            dtype=np.uint8),
-                                            cv.IMREAD_COLOR)
-            self.img_shape = (img.shape[1], img.shape[0])
-            img_show = np.zeros(img.shape, np.uint8)
-            img_show = img.copy()
-            block_img_fill_success = True
-            if int(self.img_block_row) <= self.img_block_shape[0]:
-                find, corners, params = self._pattern_info.get_pattern_info(img, 
-                                             (int(self.img_block_row), int(self.img_block_col)))
-                if not find:
-                    out_str = "no corners! skipped"
-                else:
-                    ret, out_str = self._judge_nice_pattern_view(params, corners, self._last_params, self._last_corners, 
-                                         int(self.img_block_row) * int(self.img_block_col), self._params_list)
-                    img_show = self._draw_pattern_axis(corners, img_show)
-                    if ret:
-                        for i in xrange(len(self.imgs_block_count)):
-                            if params[6] == i + 1 and self.imgs_block_count[i] < self.each_block_img_sum:
-                                print (params)
-                                self._params_list.append(params)
-                                self._corners_list.append(corners)
-                                self._last_corners = corners
-                                self._last_params = params
-                                self.imgs_block_count[i] += 1
-                                img_name = str('{}.{}'.format(ts, self.img_format))
-                                self._img_names.append(img_name)
-                                cv.imwrite(os.path.join(self.img_path, img_name), img)
-                
-                # draw on the img_show
-                cv.putText(img_show, out_str, (30, self.img_shape[1]-15), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
-                for i in xrange(len(self.imgs_block_count)):
-                    pt0, pt1 = self._get_block_vertices(i+1, 
-                                                        (int(self.img_block_row),int(self.img_block_col)), 
-                                                        self.img_shape)
-                    if self.imgs_block_count[i] == self.each_block_img_sum:
-                        img_show = self._draw_satisfied_img_block(img_show, pt0, pt1)     
-                    else: 
-                        text = "img_num: {}/{}".format(int(self.imgs_block_count[i]), self.each_block_img_sum)
-                        cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
-                        block_img_fill_success = False
-            if block_img_fill_success:
-                self.img_block_col += 0.5
-                self.img_block_row += 0.5
-                self.imgs_block_count = np.zeros(int(self.img_block_row) * int(self.img_block_col)).astype(int)            
-
-            if len(self._corners_list) == self.each_block_img_sum * self.block_sum:
-                print '------images extraction done!------'
-                break
-            cv.imshow("img", img_show)
-            cv.waitKey(10)
-        corners_list = np.array(self._corners_list)
-        img_names = np.array(self._img_names)
-        return corners_list, img_names, self.img_shape
     
-    def img_extract_from_topic(self, data):
-        print '\tDump imgs from camera topic...'
+    def img_extract_from_topic(self, img, img_show, kwargs, img_shape):
 
-        cam_data = data.get(self.img_topic)
-        if cam_data is None:
-            mw.logger.warn("no camera data input")
+        last_params = kwargs['last_params']
+        last_corners = kwargs['last_corners']
+        params_list = kwargs['params_list']
+        corners_list = kwargs['corners_list']
+        block_row = int(kwargs['cur_img_block_row'])
+        block_col = int(kwargs['cur_img_block_col'])
+        img_block_count = kwargs['img_block_count']
+        img_names = kwargs['img_names']
 
-        img = cv.imdecode(np.fromstring(cam_data, dtype=np.uint8), cv.IMREAD_COLOR)
-        self.img_shape = (img.shape[1], img.shape[0])
-        img_show = np.zeros(img.shape, np.uint8)
-        img_show = img.copy()
-
+        print ('\tDump imgs from camera topic...')
         block_img_fill_success = True
-        if int(self.img_block_row) <= self.img_block_shape[0]:
-            find, corners, params = self._pattern_info.get_pattern_info(img, 
-                                         (int(self.img_block_row), int(self.img_block_col)))
-            if not find:
-                out_str = "no corners! skipped"
-            else:
-                ret, out_str = self._judge_nice_pattern_view(params, corners, self._last_params, self._last_corners, 
-                                     int(self.img_block_row) * int(self.img_block_col), self._params_list)
-                img_show = self._draw_pattern_axis(corners, img_show)
-                if ret:
-                    for i in xrange(len(self.imgs_block_count)):
-                        if params[6] == i + 1 and self.imgs_block_count[i] < self.each_block_img_sum:
-                            print (params)
-                            self._params_list.append(params)
-                            self._corners_list.append(corners)
-                            self._last_corners = corners
-                            self._last_params = params
-                            self.imgs_block_count[i] += 1
-                            img_name = str('{}.{}'.format(ts, self.img_format))
-                            self._img_names.append(img_name)
-                            cv.imwrite(os.path.join(self.img_path, img_name), img)
-            # draw on the img_show
-            cv.putText(img_show, out_str, (20, self.img_shape[1]-15), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
-            for i in xrange(len(self.imgs_block_count)):
-                pt0, pt1 = self._get_block_vertices(i+1, (int(self.img_block_row),int(self.img_block_col)), img_shape)
-                if self.imgs_block_count[i] == self.each_block_img_sum:
-                    img_show = self._draw_satisfied_img_block(img_show, pt0, pt1)    
-                else: 
-                    text = "img_num: {}/{}".format(int(self.imgs_block_count[i]), self.each_block_img_sum)
-                    cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
-                    block_img_fill_success = False
+        find, corners, params = self._pattern_info.get_pattern_info(img, (block_row, block_col))
+        if not find:
+            out_str = "no corners! skipped"
+        else:
+            ret, out_str = self._judge_nice_pattern_view(params, 
+                                                        corners, 
+                                                        last_params, 
+                                                        last_corners, 
+                                                        block_row * block_col, 
+                                                        params_list)
+            img_show = self._draw_pattern_axis(corners, img_show)
+            if ret:
+                for i in range(len(img_block_count)):
+                    if params[6] == i + 1 and img_block_count[i] < self.each_block_img_sum:
+                        params_list.append(params)
+                        corners_list.append(corners)
+                        last_corners = corners
+                        last_params = params
+                        img_block_count[i] += 1
+                        img_name = str('{}.{}'.format(ts, self.img_format))
+                        img_names.append(img_name)
+                        cv.imwrite(os.path.join(self.img_path, img_name), img)
+        # draw on the img_show
+        cv.putText(img_show, out_str, (20, img_shape[1]-15), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
+        for i in range(len(img_block_count)):
+            pt0, pt1 = self._get_block_vertices(i+1, (block_row, block_col), img_shape)
+            if imgs_block_count[i] == self.each_block_img_sum:
+                img_show = self._draw_satisfied_img_block(img_show, img_shape, block_row, pt0, pt1)    
+            else: 
+                text = "img_num: {}/{}".format(int(img_block_count[i]), self.each_block_img_sum)
+                cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
+                block_img_fill_success = False
+        # judge img blocks filled each time
         if block_img_fill_success:
-            self.img_block_col += 0.5
-            self.img_block_row += 0.5
-            self.imgs_block_count = np.zeros(int(self.img_block_row) * int(self.img_block_col)).astype(int)            
-        if len(self._corners_list) == self.each_block_img_sum * self.block_sum:
-            print '------images extraction done!------'
-            # TODO how to make the img extract done
-            mw.shutdown()
-        self._pub_img_show(img_show)
-        cv.imshow("img", img_show)
-        cv.waitKey(10)
+            kwargs['cur_img_block_col'] += 0.5
+            kwargs['cur_img_block_row'] += 0.5
+            img_block_count = np.zeros(block_row * block_col).astype(int)
+
+        return (last_params, last_corners, params_list, corners_list,
+                kwargs['cur_img_block_row'], kwargs['cur_img_block_col'],
+                img_block_count, img_names, img_show)
 
     def _extract_img_from_ds(self):
+        print ('\tDump imgs from camera dataset...')
         if self._bag_path is not None:
             ds = Dataset(self._bag_path)
         else:
             ds = Dataset.open(self._bag_name)
 
-        print '\tFinding best time segments for calibration...'
+        print ('\tFinding best time segments for calibration...')
         corner_flags = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE
         res_list = self._find_calibrate_time(ds, self.img_topic, self.board.cb_shape, corner_flags)
 
-        print '\tEffective time segments chosen:'
+        print ('\tEffective time segments chosen:')
         for rl in res_list:
-            print [str(time2secs(l, ds.meta['ts_begin'])) + 's' for l in rl]
+            print ([str(time2secs(l, ds.meta['ts_begin'])) + 's' for l in rl])
 
-        print '\tDump imgs...'
+        print ('\tDump imgs... ')
         sample_rate = self._get_sample_rate(ds, res_list, self.img_topic, 2000)
         num_img_count = 0
         for res in res_list:
@@ -397,50 +333,49 @@ class ImgExtracter():
                     img_show = np.zeros(img.shape, np.uint8)
                     img_show = img.copy()
                     block_img_fill_success = True
-                    if int(self.img_block_row) <= self.img_block_shape[0]:
+                    if int(self._cur_img_block_row) <= self.img_block_shape[0]:
                         find, corners, params = self._pattern_info.get_pattern_info(img, 
-                                                     (int(self.img_block_row), int(self.img_block_col)))
+                                                     (int(self._cur_img_block_row), int(self._cur_img_block_col)))
                         if not find:
                             out_str = "no corners! skipped"
                         else:
                             ret, out_str = self._judge_nice_pattern_view(params, corners, self._last_params, self._last_corners, 
-                                                 int(self.img_block_row) * int(self.img_block_col), self._params_list)
+                                                 int(self._cur_img_block_row) * int(self._cur_img_block_col), self._params_list)
                             img_show = self._draw_pattern_axis(corners, img_show)
                             if ret:
-                                for i in xrange(len(self.imgs_block_count)):
-                                    if params[6] == i + 1 and self.imgs_block_count[i] < self.each_block_img_sum:
-                                        print (params)
+                                for i in range(len(self._img_block_count)):
+                                    if params[6] == i + 1 and self._img_block_count[i] < self.each_block_img_sum:
                                         self._params_list.append(params)
                                         self._corners_list.append(corners)
                                         self._last_corners = corners
                                         self._last_params = params
-                                        self.imgs_block_count[i] += 1
+                                        self._img_block_count[i] += 1
                                         img_name = str('{}.{}'.format(ts, self.img_format))
                                         self._img_names.append(img_name)
+                                        print ("get : ", params)
                                         cv.imwrite(os.path.join(self.img_path, img_name), img)
                         
                         # draw on the img_show
+                        print (out_str)
                         cv.putText(img_show, out_str, (30, int(self.img_shape[1] / 10 * 9)), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
-                        for i in xrange(len(self.imgs_block_count)):
+                        for i in range(len(self._img_block_count)):
                             pt0, pt1 = self._get_block_vertices(i+1, 
-                                                                (int(self.img_block_row),int(self.img_block_col)), 
+                                                                (int(self._cur_img_block_row),int(self._cur_img_block_col)), 
                                                                 self.img_shape)
-                            if self.imgs_block_count[i] == self.each_block_img_sum:
-                                img_show = self._draw_satisfied_img_block(img_show, pt0, pt1)     
+                            if self._img_block_count[i] == self.each_block_img_sum:
+                                img_show = self._draw_satisfied_img_block(img_show, img_shape, self._cur_img_block_row, pt0, pt1)     
                             else: 
-                                text = "img_num: {}/{}".format(int(self.imgs_block_count[i]), self.each_block_img_sum)
+                                text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
                                 cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
                                 block_img_fill_success = False
                     if block_img_fill_success:
-                        self.img_block_col += 0.5
-                        self.img_block_row += 0.5
-                        self.imgs_block_count = np.zeros(int(self.img_block_row) * int(self.img_block_col)).astype(int)            
+                        self._cur_img_block_row += 0.5
+                        self._cur_img_block_col += 0.5
+                        self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)            
             
                     if len(self._corners_list) == self.each_block_img_sum * self.block_sum:
-                        print '------images extraction done!------'
+                        print ('------images extraction done!------')
                         break
-                    cv.imshow("img", img_show)
-                    cv.waitKey(10)
                 corners_list = np.array(self._corners_list)
                 img_names = np.array(self._img_names)
         return corners_list, img_names, self.img_shape
@@ -462,7 +397,6 @@ class ImgExtracter():
                cam_topic - camera topic
         output: valid calibration time range, a list of [ts_begin, ts_end]
         """
-        print ('opencv.__version__ : ', cv.__version__)
         ts_begin, ts_end = ds.meta['ts_begin'], ds.meta['ts_end']
         time_step = time_step * 60.0 * 1e9  # convert from minutes to milliseconds
         ts_list = np.arange(ts_begin, ts_end, time_step)
@@ -492,52 +426,6 @@ class ImgExtracter():
         if len(cur) == 2:
             res_list.append(copy.copy(cur))
         return res_list
-
-    def setup(self):
-        # set publisher
-        self.pub = mw.Publisher('/camera{}/img_extact/compressed'.format(
-            self.cam_id),
-            CompressedImage,
-            monitored=False)
-        # sub node
-        self._setup_subscriber()
-
-        # start
-        mw.run_handler_async(self.inputs,
-                             self.img_extract_from_topic,
-                             fetch_option=dict(max_age=0.03),
-                             monitored=True)
-
-    def _setup_subscriber(self):
-        img_sub = mw.Subscriber(self.img_topic, 
-                                CompressedImage,
-                                monitored=False)
-        
-        sub_lst = [img_sub]
-
-        self.inputs = mw.SmartMixer(*sub_lst)
-    
-    def _pub_img_show(self, img_show):
-        self.pub.publish(img_show)
-
-    def img_extract(self):
-        if self.input_method == 'dataset':
-            corners_list, img_names, img_shape = \
-                self._extract_img_from_ds()
-        elif self.input_method =='rosbag':
-            corners_list, img_names, img_shape = \
-                self._extract_img_from_rosbag()
-        elif self.input_method == 'topic':
-            self.setup()
-            mw.start_heartbeat()
-            mw.spin()
-            mw.shutdown()
-            corners_list = np.array(self._corners_list)
-            img_names = np.array(self._img_names)
-            img_shape = self.img_shape
-        else:
-            mw.logger.warn("no input method")
-        return corners_list, img_names, img_shape
 
 
 

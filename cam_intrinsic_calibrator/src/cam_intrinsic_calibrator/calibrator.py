@@ -16,7 +16,7 @@ from img_extracter import ImgExtracter
 
 import detector_util as util
 
-class RLScalibrator:
+class Calibrator(ImgExtracter):
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
 
     cali_flags = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_ZERO_TANGENT_DIST + \
@@ -30,7 +30,8 @@ class RLScalibrator:
         if cfg_path is None:
             cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
         cfg = yaml.safe_load(open(cfg_path, 'r'))
-
+        
+        super(Calibrator ,self).__init__(cfg_path)
         self.cali_crit = self._build_term_crit(self.calib_crit)
 
         threshold_cfg = cfg.get('threshold')
@@ -49,9 +50,6 @@ class RLScalibrator:
         self.verbose = debug_cfg.get('verbose')
 
         camera_cfg = cfg.get('camera')
-        self.is_cam390 = camera_cfg.get('is_cam390')
-        self.img_shape = camera_cfg.get('img_shape')
-        self.cam_id = camera_cfg.get('id')
         self.output_img_shape = camera_cfg.get('output_img_shape')
         self.flip_input_img = camera_cfg.get('flip_input_img')
         self.flip_output_img = camera_cfg.get('flip_output_img')
@@ -82,8 +80,7 @@ class RLScalibrator:
         self.pattern_shape = eval(pattern_cfg.get('pattern_shape'))
         self.corner_distance = pattern_cfg.get('corner_distance')
 
-        self.img_extracter = ImgExtracter(None)
-        self.data_dir = self.img_extracter.output_dir
+        self.data_dir = self.output_dir
         self.progress_output_dir = os.path.join(self.data_dir, 'progress')
         if not os.path.exists(self.progress_output_dir):
             os.makedirs(self.progress_output_dir)
@@ -93,7 +90,7 @@ class RLScalibrator:
     def _build_term_crit(choices):
         _crits = 0
         _choices = []
-        for crit, choice in zip(RLScalibrator.CV_TERM_CRITERIAS, choices):
+        for crit, choice in zip(Calibrator.CV_TERM_CRITERIAS, choices):
             if choice is not None and choice >= 0:
                 _crits += crit
                 _choices.append(choice)
@@ -181,9 +178,9 @@ class RLScalibrator:
         # print results
         idx = candidate_indices[np.argmin(reproj_list)]
         if verbose:
-            print 'reprojection list: {}'.format(reproj_list)
-            print 'least reprojection idx: {}, new method idx: {}'.format(np.argmin(np.abs(ret_list)), idx)
-            print 'corresponding reproj error: {}, {}'.format(ret_list[np.argmin(np.abs(ret_list))], ret_list[idx])
+            print ('reprojection list: {}'.format(reproj_list))
+            print ('least reprojection idx: {}, new method idx: {}'.format(np.argmin(np.abs(ret_list)), idx))
+            print ('corresponding reproj error: {}, {}'.format(ret_list[np.argmin(np.abs(ret_list))], ret_list[idx]))
 
         return candidate_indices, reproj_list
 
@@ -227,8 +224,7 @@ class RLScalibrator:
         return the initial alogi intrinsic
         """
         params, intrinsicMatrix = self._compute_init_guess_intrinsic(camera_cfg, img_shape, img_flipped)
-        print ('img_shape',img_shape)
-        print ('ratio',ratio)
+        print ('img_shape: ',img_shape)
         ret1, matrix, distort1, rvecs1, tvecs1, newObPoints = \
         cv.calibrateCameraRO(corners_cooders, corners_list, img_shape, -1, intrinsicMatrix, None,
                             flags=self.cali_flags, criteria=self.cali_crit)
@@ -296,13 +292,13 @@ class RLScalibrator:
         opt_k_mat = k_list[idx]
         opt_distortion = distort_list[idx]
 
-        print '-----------rls K------------'
-        print rls_k_mat
-        print '-----------opt K------------'
-        print opt_k_mat
-        print '-------------D--------------'
-        print opt_distortion
-        print 'reprojection error: {}'.format(ret_list[idx])
+        print ("-----------rls K------------")
+        print (rls_k_mat)
+        print ("-----------opt K------------")
+        print (opt_k_mat)
+        print ("-------------D--------------")
+        print (opt_distortion)
+        print ('reprojection error: {}'.format(ret_list[idx]))
 
         return rls_k_mat, opt_k_mat, opt_distortion, k_list, distort_list, \
                r_list, t_list, id_list, ret_list, ret_list[idx] 
@@ -387,13 +383,13 @@ class RLScalibrator:
         opt_k_mat = k_list[idx]
         opt_distortion = distort_list[idx]
 
-        print '-----------rls K------------'
-        print rls_k_mat
-        print '-----------opt K------------'
-        print opt_k_mat
-        print '-------------D--------------'
-        print opt_distortion
-        print 'reprojection error: {}'.format(ret_list[idx])
+        print ("-----------rls K------------")
+        print (rls_k_mat)
+        print ("-----------opt K------------")
+        print (opt_k_mat)
+        print ("-------------D--------------")
+        print (opt_distortion)
+        print ('reprojection error: {}'.format(ret_list[idx]))
 
         return rls_k_mat, opt_k_mat, opt_distortion, k_list, distort_list, \
                r_list, t_list, id_list, ret_list, ret_list[idx]
@@ -404,10 +400,10 @@ class RLScalibrator:
         if os.path.exists(path):  # delete the folder if already exists
             shutil.rmtree(path)
         os.mkdir(path)
-        for i in xrange(int(np.max(kmeans_labels)) + 1):
+        for i in range(int(np.max(kmeans_labels)) + 1):
             os.mkdir(os.path.join(path, str(i + 1)))
-        for i in xrange(len(img_names)):
-            image = cv.imread(str(self.img_extracter.img_path + img_names[i]), cv.IMREAD_COLOR)
+        for i in range(len(img_names)):
+            image = cv.imread(str(self.img_path + img_names[i]), cv.IMREAD_COLOR)
             cv.imwrite(path + '/' + str(int(kmeans_labels[i]) + 1) + '/' + img_names[i], image)
 
     def _save_batch_imgs(self, idx_lst, img_names):
@@ -420,7 +416,7 @@ class RLScalibrator:
             sub_path = os.path.join(path, str(i))
             os.mkdir(sub_path)
             for im_name in img_names[idx]:
-                image = cv.imread(self.img_extracter.img_path + im_name)
+                image = cv.imread(self.img_path + im_name)
                 cv.imwrite(os.path.join(sub_path, im_name), image)
     
     def _img_cluster(self, batch_size, homographies, init_k_params, reg, img_names, iter_num):
@@ -430,14 +426,14 @@ class RLScalibrator:
 
         num_imgs = len(img_names)
 
-        if num_imgs < RLScalibrator.min_num_img_todo_sampling:
+        if num_imgs < Calibrator.min_num_img_todo_sampling:
             num_cluster = 1
             batch_num = 1
             num_each_cluster = num_imgs
             kmeans_labels = np.zeros(num_imgs)
-            print 'with {} images, no sampling needed'.format(num_imgs)
+            print ('with {} images, no sampling needed'.format(num_imgs))
         else:
-            print 'please make sure the img num is less then min_num_img_todo_sampling'
+            print ("please make sure the img num is less then min_num_img_todo_sampling")
             raise Exception('error')
 
 
@@ -446,15 +442,15 @@ class RLScalibrator:
         intrinsic_results = []
         label_index_map, label_size_map = [], []
 
-        for i in xrange(num_cluster):
+        for i in range(num_cluster):
             label_index_map.append(np.where(kmeans_labels == i)[0].flatten())
             label_size_map.append(len(label_index_map[-1]))
 
         # np.random.seed(5)  # set the seed so same data will yield same results
         np.random.seed()
-        for batch_iter in xrange(batch_num):
+        for batch_iter in range(batch_num):
             idx = []
-            for i in xrange(num_cluster):
+            for i in range(num_cluster):
                 if num_each_cluster >= label_size_map[i]:
                     idx.extend(label_index_map[i])
                 else:
@@ -525,13 +521,13 @@ class RLScalibrator:
         opt_k_mat = k_list[idx]
         opt_distortion = distort_list[idx]
 
-        print '-----------rls K------------'
-        print rls_k_mat
-        print '-----------opt K------------'
-        print opt_k_mat
-        print '-------------D--------------'
-        print opt_distortion
-        print 'reprojection error: {}'.format(ret_list[idx])
+        print ("-----------rls K------------")
+        print (rls_k_mat)
+        print ("-----------opt K------------")
+        print (opt_k_mat)
+        print ("-------------D--------------")
+        print (opt_distortion)
+        print ('reprojection error: {}'.format(ret_list[idx]))
 
         return rls_k_mat, opt_k_mat, opt_distortion, k_list, distort_list, \
                r_list, t_list, id_list, ret_list, ret_list[idx]
@@ -543,9 +539,9 @@ class RLScalibrator:
                                [0, fy, v],
                                [0, 0, 1]])
         if self.is_using_OR_calibrate:
-            RLScalibrator.iFixedPoint = len(corners_x[0]) - 2
+            Calibrator.iFixedPoint = len(corners_x[0]) - 2
         newObPoints = None
-        # print RLSCalibrator.iFixedPoint int(len(corners_x) - 3)
+        # print Calibrator.iFixedPoint int(len(corners_x) - 3)
         # NOTE:there is a bug in function calibrateCameraRO() of opencv4 when iFixedPoint>0
         # ret, k, distort, rvecs, tvecs, newObPoints = \
         #    cv.calibrateCameraRO(corners_x, corners_y, img_shape, -1, init_k_mat, None,
@@ -573,7 +569,7 @@ class RLScalibrator:
             if counter[i] != 0:
                 reprojection_error[i] = np.sqrt(reprojection_error[i] / float(counter[i]))
 
-        plt.bar(range(reprojection_error.shape[0]), reprojection_error)
+        # plt.bar(range(reprojection_error.shape[0]), reprojection_error)
         idx_iqr = outliers_iqr(reprojection_error, lower=False)
         idx_norm_std = outliers_norm_std(reprojection_error, lower=False)
         invalid_idx = idx_iqr | idx_norm_std
@@ -581,7 +577,7 @@ class RLScalibrator:
         # Fix the id_list after filter
         current_id = 0
         id_list = np.asarray(id_list).astype(float)
-        for i in xrange(corners[0].shape[0]):
+        for i in range(corners[0].shape[0]):
             if not invalid_idx[i]:
                 id_list[id_list == i] = current_id
                 current_id += 1
@@ -589,7 +585,7 @@ class RLScalibrator:
                 # distory the invaild index
                 id_list[id_list == i] = np.inf
         if sum(invalid_idx) == 0:
-            print 'no outliers are found by re-proj error'
+            print ("no outliers are found by re-proj error")
             success = True
         else:
             success = False
@@ -625,21 +621,19 @@ class RLScalibrator:
 
         return homographies, corners, img_names, id_list, success
     
-    def calibrate(self):
+    def calibrate(self, corners_list, img_names, img_shape):
   
         iter_img_sum = 0
         success= False
 
-        print 'start to extract image...'   
-        corners_list, img_names, img_shape = self.img_extracter.img_extract()
         corners_coords = self._get_corner_coords(len(corners_list))
         homographies = util.compute_homographies(corners_coords, corners_list)
         corners = [corners_coords, corners_list]
 
-        print 'start to calibrate camera intrinsic params...'
-        print '-----------initial  K------------'
+        print ("\nstart to calibrate camera intrinsic params...")
+        print ("-----------initial  K------------")
         init_k_params, init_k_mat = self._compute_init_guess_intrinsic(self.cam_config, img_shape, self.flip_input_img)
-        print init_k_mat
+        print (init_k_mat)
 
         iter_num = 1
         opt_k = np.eye(3)
@@ -648,8 +642,8 @@ class RLScalibrator:
         success = False
         ret_list, k_list, distort_list, r_list, t_list, id_list = None, None, None, None, None, None
 
-        while not success and iter_num < self.max_iter:
-            print '\nstarting {} iteration'.format(iter_num)
+        while not success and iter_num <= self.max_iter:
+            print ('\nstarting {} iteration'.format(iter_num))
             if iter_num != 1 and self.is_ring:
                 # TODO: refine the corner detection for ring
                 kwargs = {'corners': corners_list, 'img_names': img_names, 'ret_list': ret_list, 'k_list': k_list,
@@ -660,7 +654,7 @@ class RLScalibrator:
             candidate_idx, idx_list, intrinsic_results = \
                 self._img_cluster(self.batch_size, homographies, init_k_params, self.reg, img_names, iter_num)
             
-            print 'parameter optimizing...'
+            print ("parameter optimizing...")
             # rls_k, opt_k, opt_distortion, k_list, distort_list, r_list, t_list, id_list, ret_list, err = \
             #     self.optimize_param(candidate_idx, idx_list, intrinsic_results, corners, img_shape)
             rls_k, opt_k, opt_distortion, k_list, distort_list, r_list, t_list, id_list, ret_list, err = \
@@ -677,19 +671,19 @@ class RLScalibrator:
                                                   k_list, distort_list, r_list, t_list, id_list, iter_num)
 
             iter_num += 1
-            print '----------------------'
+            print ("----------------------")
 
-        print 'saving intrinsic parameters...'
-        save_params(self.data_dir, self.img_extracter._bag_name, self.cam_id, opt_k, opt_distortion,
+        print ("saving intrinsic parameters...")
+        params_res = save_params(self.data_dir, self._bag_name, self.cam_id, opt_k, opt_distortion,
                     img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, 
                     self.cam_config.get('focal_length'))
 
-        return opt_k, opt_distortion, img_shape
+        return params_res
 
 
 ## for test
-if __name__ == '__main__':
-    from RLScalibrator import RLScalibrator
-    cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
-    rls_calib = RLScalibrator(cfg_path)
-    rls_calib.calibrate()
+# if __name__ == '__main__':
+#     from calibrator import Calibrator
+#     cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
+#     rls_calib = Calibrator(cfg_path)
+#     rls_calib.calibrate()

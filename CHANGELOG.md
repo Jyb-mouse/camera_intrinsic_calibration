@@ -1,5 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.0.4] - 2019-10-23
+### Added
+- tspkg zoro version test
 
 ## [1.0.3] - 2019-10-21
 ### Added

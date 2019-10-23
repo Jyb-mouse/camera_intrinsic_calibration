@@ -2,6 +2,7 @@ name: cam_intrinsic_calibrator
 version: __from_changelog__
 
 deps:
+  zoro: any
   opencv: any
   middleware: any
   dataset_store: any

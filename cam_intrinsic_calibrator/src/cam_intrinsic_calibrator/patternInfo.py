@@ -5,7 +5,6 @@ import cv2 as cv
 import numpy as np
 import math
 import scipy.ndimage
-from io import BytesIO
 
 from board import ChessBoard, RingBoard
 
@@ -218,8 +217,8 @@ class PatternInfo:
         idx2 = np.arange(-half_w_size, half_w_size + 1) * height
         idx2 = idx2.reshape((len(idx2), 1))
         idx3 = np.tile(idx1.T, np.array([len(idx2), 1])) + np.tile(idx2, np.array([1, len(idx1)])) - 1
-        tmp1 = np.sum(np.array([DoMx.flatten('F')[idx3[i, :]] for i in xrange(idx3.shape[0])]), axis=0)
-        tmp2 = np.sum(np.array([Gradx.flatten('F')[idx3[i, :]] for i in xrange(idx3.shape[0])]), axis=0)
+        tmp1 = np.sum(np.array([DoMx.flatten('F')[idx3[i, :]] for i in range(idx3.shape[0])]), axis=0)
+        tmp2 = np.sum(np.array([Gradx.flatten('F')[idx3[i, :]] for i in range(idx3.shape[0])]), axis=0)
         idx = np.nonzero(tmp2)
         sx_nz = np.absolute(tmp1[idx] / tmp2[idx])
 
@@ -235,8 +234,8 @@ class PatternInfo:
         idx2 = np.arange(-half_w_size, half_w_size + 1)
         idx2 = idx2.reshape((len(idx2), 1))
         idx3 = np.tile(idx1.T, np.array([len(idx2), 1])) + np.tile(idx2, np.array([1, len(idx1)])) - 1
-        tmp1 = np.sum(np.array([DoMy.flatten('F')[idx3[i, :]] for i in xrange(idx3.shape[0])]), axis=0)
-        tmp2 = np.sum(np.array([Grady.flatten('F')[idx3[i, :]] for i in xrange(idx3.shape[0])]), axis=0)
+        tmp1 = np.sum(np.array([DoMy.flatten('F')[idx3[i, :]] for i in range(idx3.shape[0])]), axis=0)
+        tmp2 = np.sum(np.array([Grady.flatten('F')[idx3[i, :]] for i in range(idx3.shape[0])]), axis=0)
         idx = np.nonzero(tmp2)
         sy_nz = np.absolute(tmp1[idx] / tmp2[idx])
 
@@ -275,7 +274,7 @@ class PatternInfo:
         else:
             gray = img
         if self.is_using_cv4:
-            find, corners = cv.findChessboardCornersSB(gray, pattern_shape, flags=self.corner_flags_cv4)
+            find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv4)
         else:
             find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv2)
         if not find:
@@ -284,7 +283,9 @@ class PatternInfo:
         # If any corners are within BORDER pixels of the screen edge, reject the detection by setting ok to false
         # NOTE: This may cause problems with very low-resolution cameras, where 8 pixels is a non-negligible fraction
         BORDER = 8
-        if not all([(BORDER < corners[i, 0, 0] < (w - BORDER)) and (BORDER < corners[i, 0, 1] < (h - BORDER)) for i in range(corners.shape[0])]):
+        if not all([(BORDER < corners[i, 0, 0] < (w - BORDER)) and 
+                    (BORDER < corners[i, 0, 1] < (h - BORDER)) 
+                    for i in range(corners.shape[0])]):
             find = False
 
         # TODO: how to make sure the pattern origin is the corners[0]?
@@ -304,8 +305,11 @@ class PatternInfo:
                     index = row*pattern_shape[1] + col
                     distance = min(distance, self._pdist(corners[index, 0], corners[index + pattern_shape[0], 0]))
             radius = int(math.ceil(distance * 0.5))
-            cv.cornerSubPix(gray, corners, (radius,radius), (-1,-1),
-                                        ( cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.000001 ))
+            cv.cornerSubPix(gray,
+                            corners, 
+                            (radius,radius), 
+                            (-1,-1),
+                            ( cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.000001 ))
         return find, corners
 
     def get_pattern_info(self, img, block_shape = (2, 3), refine = True, usingCV4 = False):

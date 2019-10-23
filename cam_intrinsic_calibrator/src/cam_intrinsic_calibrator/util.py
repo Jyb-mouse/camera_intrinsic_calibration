@@ -36,12 +36,6 @@ def outliers_norm_std(data, lower=True, upper=True):
 
     return idx
 
-
-"""
-    io utils
-"""
-
-
 def scale_cam_intrinsic(intrinsic, src_shape, dst_shape, override=False):
     """
     scale intrinsic due to image size changed
@@ -94,6 +88,7 @@ def save_params(output_file_path, bag_name, cam_id, intrinsic, distortion,
                 'meta': meta_dict}
     with open(os.path.join(output_file_path, 'camera-{}.yaml'.format(cam_id)), 'w') as f:
         yaml.safe_dump(res_dict, f)
+    return res_dict
 
 
 def time2secs(time, ts_begin):
@@ -110,4 +105,3 @@ def time2secs(time, ts_begin):
         assert len(res) == 2, '{} format not correct, should be AA:BB'.format(time)
         _min, _sec = res
         return int(_min) * 60 + int(_sec)
-

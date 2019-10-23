@@ -15,9 +15,6 @@ cam_intrinsic_calibrator:
     is_cam390:
       - True
       - False
-    is_using_rosbag:
-      - True
-      - False
   
   in_topics:
     - /camera1/image_color/compressed

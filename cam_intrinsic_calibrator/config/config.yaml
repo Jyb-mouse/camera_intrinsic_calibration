@@ -23,7 +23,7 @@ RLS: # while preform RLS regulation for each camera
   25mm: False
 
 debug:
-  viz: True
+  viz: False
   save: False
   verbose: False
 ###################################################################################
@@ -34,9 +34,9 @@ debug:
 #################################### User input ######################################
 camera:
   img_shape: [1024, 576]
-  is_cam390: False
+  is_cam390: True
   output_img_shape: [1024, 576]
-  id: 3
+  id: 17
   flip_input_img: False           # *must, true only if the input images is vertically captured, e.g. for rear cameras.
   flip_output_img: False          # *must, set true for horizontally calibrated camera but will be vertically installed.
                                   #   e.g rear cams
@@ -47,10 +47,9 @@ camera:
   # capture vertically, use vertically: flip_input_img = True, flip_output_img = True 
 
 data:
-  input_method: rosbag
+  input_method: dataset         # dataset or dataset
   dataset_name: 2019-10-10-14-17-33 
-  rosbag_name: /home/tusimple/Downloads/25mm_square.bag
-  output_dir: /home/tusimple/camera_intrisic_img_extracter/test
+  output_dir: /mnt/truenas/scratch/lingbo.yu/cam_intrinsic_result/
   num_thread: 6
 
 pattern:
