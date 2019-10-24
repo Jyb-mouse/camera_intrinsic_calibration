@@ -1,6 +1,6 @@
 cam_intrinsic_calibrator:
-  launch_file_path: launch/camera_intrinsic_autocalibrator.launch
-  cmd: zoro launch cam_intrinsic_calibrator camera_intrinsic_autocalibrator.launch
+  launch_file_path: launch/cam_intrinsic_calibrator.launch
+  cmd: zoro launch cam_intrinsic_calibrator cam_intrinsic_calibrator.launch
   module: util
 
   args:
@@ -15,7 +15,7 @@ cam_intrinsic_calibrator:
     is_cam390:
       - True
       - False
-  
+
   in_topics:
     - /camera1/image_color/compressed
     - /camera3/image_color/compressed
@@ -26,11 +26,11 @@ cam_intrinsic_calibrator:
     - /camera17/image_color/compressed
   
   out_topics:
-    - /camera1/img_extact/compressed
-    - /camera3/img_extact/compressed
-    - /camera4/img_extact/compressed
-    - /camera6/img_extact/compressed
-    - /camera7/img_extact/compressed
-    - /camera15/img_extact/compressed
-    - /camera17/img_extact/compressed
+    - /camera1/intrinsic_calib/compressed
+    - /camera3/intrinsic_calib/compressed
+    - /camera4/intrinsic_calib/compressed
+    - /camera6/intrinsic_calib/compressed
+    - /camera7/intrinsic_calib/compressed
+    - /camera15/intrinsic_calib/compressed
+    - /camera17/intrinsic_calib/compressed
   

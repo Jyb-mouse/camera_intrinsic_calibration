@@ -1,13 +1,18 @@
 import os
 import sys
+import middleware as mw
 import shutil
-import matplotlib
 # set matplotlib to not use the Xwindows backend.
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 
-from cam_intrinsic_calibrator import CamInstrinsicCalib
+from cam_intrinsic_calibrator import CamInstrinsicCalib 
 
 def main():
-    user_config_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')\
+    user_config_path = os.environ[
+        "TSPKG_PREFIX_PATH"] + '/share/cam_intrinsic_calibrator/configs/'
+    
     rls_calibrator = CamInstrinsicCalib(user_config_path)
     rls_calibrator.img_extract()
+
+if __name__ == "__main__":
+    main()    

@@ -2,6 +2,7 @@ import os
 import yaml
 import math
 import copy
+import sys
 import time
 import shutil
 import cv2 as cv
@@ -9,9 +10,10 @@ import numpy as np
 import middleware as mw 
 from dataset_store import Dataset
 
-from patternInfo import PatternInfo
-from board import ChessBoard
-from util import time2secs
+
+from .patternInfo import PatternInfo
+from .board import ChessBoard
+from .util import time2secs
 
 class ImgExtracter(object):
     camera_topic_390 = '/camera{}/image_color/compressed'
@@ -24,9 +26,11 @@ class ImgExtracter(object):
         self.is_cam390 = mw.get_param('~is_cam390', False)
 
         #init param from chonfig
-        if cfg_path is None:
-            cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
-        cfg = yaml.safe_load(open(cfg_path, 'r'))
+        # if cfg_path is None:
+        #    cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
+        print (cfg_path)
+        cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
+        
 
         threshold_cfg = cfg.get('threshold')
         self.min_pin_difference = threshold_cfg.get('min_pin_difference', 0.1)
@@ -66,7 +70,7 @@ class ImgExtracter(object):
         
         if self.dir_output is None:
             print ('Please enter the path of output at config/data/output_dir')
-            sys.exit()
+            sys.exit(0)
         self.output_dir = None
         if self.input_method == 'dataset':
             self._bag_name = self.dataset_name
@@ -102,7 +106,7 @@ class ImgExtracter(object):
         self._params_list = []
         self._corners_list = []
         self._cur_img_block_row = 1.5 #  1 to 2 to 2
-        self._cur_img_block_col = 2.5 #  2 to 2 to 3
+        self._cur_img_block_col = 2.0 #  2 to 2 to 3
         self._img_names = []
         self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col))
         self.img_shape = np.zeros(2)
@@ -251,61 +255,58 @@ class ImgExtracter(object):
                 (0,0,255), 
                 2)
         return img
+
+    def img_extract_from_topic(self, img, img_show, img_shape):
     
-    def img_extract_from_topic(self, img, img_show, kwargs, img_shape):
-
-        last_params = kwargs['last_params']
-        last_corners = kwargs['last_corners']
-        params_list = kwargs['params_list']
-        corners_list = kwargs['corners_list']
-        block_row = int(kwargs['cur_img_block_row'])
-        block_col = int(kwargs['cur_img_block_col'])
-        img_block_count = kwargs['img_block_count']
-        img_names = kwargs['img_names']
-
         print ('\tDump imgs from camera topic...')
+        block_row = int(self._cur_img_block_row)
+        block_col = int(self._cur_img_block_col)
+
         block_img_fill_success = True
+        ret = False
         find, corners, params = self._pattern_info.get_pattern_info(img, (block_row, block_col))
         if not find:
             out_str = "no corners! skipped"
         else:
             ret, out_str = self._judge_nice_pattern_view(params, 
                                                         corners, 
-                                                        last_params, 
-                                                        last_corners, 
+                                                        self._last_params, 
+                                                        self._last_corners, 
                                                         block_row * block_col, 
-                                                        params_list)
+                                                        self._params_list)
             img_show = self._draw_pattern_axis(corners, img_show)
+
             if ret:
-                for i in range(len(img_block_count)):
-                    if params[6] == i + 1 and img_block_count[i] < self.each_block_img_sum:
-                        params_list.append(params)
-                        corners_list.append(corners)
-                        last_corners = corners
-                        last_params = params
-                        img_block_count[i] += 1
+                for i in range(len(self._img_block_count)):
+                    if params[6] == i + 1 and self._img_block_count[i] < self.each_block_img_sum:
+                        self._params_list.append(params)
+                        self._corners_list.append(corners)
+                        self._last_corners = corners
+                        self._last_params = params
+                        self._img_block_count[i] += 1
+                        ts = time.time()
                         img_name = str('{}.{}'.format(ts, self.img_format))
-                        img_names.append(img_name)
+                        self._img_names.append(img_name)
+                        ret = True
                         cv.imwrite(os.path.join(self.img_path, img_name), img)
         # draw on the img_show
         cv.putText(img_show, out_str, (20, img_shape[1]-15), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
-        for i in range(len(img_block_count)):
+        for i in range(len(self._img_block_count)):
             pt0, pt1 = self._get_block_vertices(i+1, (block_row, block_col), img_shape)
-            if imgs_block_count[i] == self.each_block_img_sum:
+            if self._img_block_count[i] == self.each_block_img_sum:
+                out_str = "This image block has been filled!"
                 img_show = self._draw_satisfied_img_block(img_show, img_shape, block_row, pt0, pt1)    
             else: 
-                text = "img_num: {}/{}".format(int(img_block_count[i]), self.each_block_img_sum)
+                text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
                 cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
                 block_img_fill_success = False
         # judge img blocks filled each time
         if block_img_fill_success:
-            kwargs['cur_img_block_col'] += 0.5
-            kwargs['cur_img_block_row'] += 0.5
-            img_block_count = np.zeros(block_row * block_col).astype(int)
-
-        return (last_params, last_corners, params_list, corners_list,
-                kwargs['cur_img_block_row'], kwargs['cur_img_block_col'],
-                img_block_count, img_names, img_show)
+            self._cur_img_block_row += 0.5
+            self._cur_img_block_col += 0.5
+            self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
+        print (self._img_block_count)
+        return  ret, self._corners_list, self._img_names
 
     def _extract_img_from_ds(self):
         print ('\tDump imgs from camera dataset...')
@@ -354,7 +355,6 @@ class ImgExtracter(object):
                                         self._img_names.append(img_name)
                                         print ("get : ", params)
                                         cv.imwrite(os.path.join(self.img_path, img_name), img)
-                        
                         # draw on the img_show
                         print (out_str)
                         cv.putText(img_show, out_str, (30, int(self.img_shape[1] / 10 * 9)), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
@@ -363,7 +363,7 @@ class ImgExtracter(object):
                                                                 (int(self._cur_img_block_row),int(self._cur_img_block_col)), 
                                                                 self.img_shape)
                             if self._img_block_count[i] == self.each_block_img_sum:
-                                img_show = self._draw_satisfied_img_block(img_show, img_shape, self._cur_img_block_row, pt0, pt1)     
+                                img_show = self._draw_satisfied_img_block(img_show, self.img_shape, self._cur_img_block_row, pt0, pt1)     
                             else: 
                                 text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
                                 cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)

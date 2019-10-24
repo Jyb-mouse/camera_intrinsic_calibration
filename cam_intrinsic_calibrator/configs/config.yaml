@@ -14,7 +14,7 @@ base:
   is_using_OR_calibrate: True     ### whether use the Object release method to calibrate
   sum_images_need: 72             ### Number of images required
   img_block_shape: (2, 3)
-  max_iter: 2                    ###
+  max_iter: 1                    ###
 
 RLS: # while preform RLS regulation for each camera
   4mm: False
@@ -47,7 +47,7 @@ camera:
   # capture vertically, use vertically: flip_input_img = True, flip_output_img = True 
 
 data:
-  input_method: dataset         # dataset or dataset
+  input_method: topic         # dataset or dataset
   dataset_name: 2019-10-10-14-17-33 
   output_dir: /mnt/truenas/scratch/lingbo.yu/cam_intrinsic_result/
   num_thread: 6

@@ -6,7 +6,7 @@ import numpy as np
 import math
 import scipy.ndimage
 
-from board import ChessBoard, RingBoard
+from .board import ChessBoard, RingBoard
 
 
 
@@ -19,9 +19,10 @@ class PatternInfo:
     corner_flags_cv2 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE
 
     def __init__(self, cfg_path):
-        if cfg_path is None:
-            cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
-        cfg = yaml.safe_load(open(cfg_path, 'r'))
+        # if cfg_path is None:
+        #     cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
+
+        cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
 
         base_cfg = cfg.get('base')
         self.is_using_cv4 = base_cfg.get('is_using_cv4', False)

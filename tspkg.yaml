@@ -8,9 +8,9 @@ deps:
   dataset_store: any
 
 extra_deps:
-pip2: numpy pyyaml rosbag matplotlib sklearn
+  pip3: numpy pyyaml matplotlib sklearn scipy 
 
-build: 
+build: |
   pushd cam_intrinsic_calibrator
     install_python 3 src/cam_intrinsic_calibrator
     install launch/* launch/cam_intrinsic_calibrator/

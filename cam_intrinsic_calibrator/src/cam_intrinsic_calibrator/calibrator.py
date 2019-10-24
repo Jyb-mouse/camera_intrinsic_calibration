@@ -3,18 +3,16 @@ import yaml
 import cv2 as cv
 import shutil
 import numpy as np
-import operator as op
-from functools import reduce as rd
 import matplotlib.pyplot as plt
 
 from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
-from util import save_params, outliers_iqr, outliers_norm_std
-from img_extracter import ImgExtracter
+from .util import save_params, outliers_iqr, outliers_norm_std
+from .img_extracter import ImgExtracter
 
-import detector_util as util
+from .detector_util import *
 
 class Calibrator(ImgExtracter):
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
@@ -27,9 +25,10 @@ class Calibrator(ImgExtracter):
     min_num_img_todo_sampling = 200
 
     def __init__(self, cfg_path):
-        if cfg_path is None:
-            cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
-        cfg = yaml.safe_load(open(cfg_path, 'r'))
+        # if cfg_path is None:
+        #     cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
+        #     cfg_path = 
+        cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
         
         super(Calibrator ,self).__init__(cfg_path)
         self.cali_crit = self._build_term_crit(self.calib_crit)
@@ -627,7 +626,7 @@ class Calibrator(ImgExtracter):
         success= False
 
         corners_coords = self._get_corner_coords(len(corners_list))
-        homographies = util.compute_homographies(corners_coords, corners_list)
+        homographies = compute_homographies(corners_coords, corners_list)
         corners = [corners_coords, corners_list]
 
         print ("\nstart to calibrate camera intrinsic params...")
