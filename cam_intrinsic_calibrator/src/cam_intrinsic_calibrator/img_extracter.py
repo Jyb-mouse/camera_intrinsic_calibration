@@ -61,6 +61,7 @@ class ImgExtracter(object):
                                 float(pattern_cfg.get('corner_distance')))
 
         self.refine = True
+        self.filled_str = "This image block has been filled!"
 
         self._num_img = 0
         self.img_path = None
@@ -244,7 +245,7 @@ class ImgExtracter(object):
         return img
 
     @staticmethod
-    def _draw_satisfied_img_block(img, img_shape, img_block_row, pt0, pt1):
+    def _draw_satisfied_img_block(img, img_shape, img_block_row, pt0, pt1, put_str):
         p0 = tuple(pt0)
         p1 = tuple(pt1)
         cv.rectangle(img, p0, p1, (0,0,255), 2)  
@@ -254,11 +255,18 @@ class ImgExtracter(object):
                 (pt1[0], pt1[1]-int(img_shape[1]/int(img_block_row))), 
                 (0,0,255), 
                 2)
+        cv.putText(img,
+                   put_str,
+                   (pt0[0]+20,pt0[1]+20),
+                   cv.FONT_HERSHEY_PLAIN,
+                   1.4,
+                   (0,255,0),
+                   2)
         return img
 
     def img_extract_from_topic(self, img, img_show, img_shape):
     
-        print ('\tDump imgs from camera topic...')
+        mw.logger.info('\tDump imgs from camera topic...')
         block_row = int(self._cur_img_block_row)
         block_col = int(self._cur_img_block_col)
 
@@ -294,8 +302,7 @@ class ImgExtracter(object):
         for i in range(len(self._img_block_count)):
             pt0, pt1 = self._get_block_vertices(i+1, (block_row, block_col), img_shape)
             if self._img_block_count[i] == self.each_block_img_sum:
-                out_str = "This image block has been filled!"
-                img_show = self._draw_satisfied_img_block(img_show, img_shape, block_row, pt0, pt1)    
+                img_show = self._draw_satisfied_img_block(img_show, img_shape, block_row, pt0, pt1, self.filled_str)    
             else: 
                 text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
                 cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
@@ -305,8 +312,7 @@ class ImgExtracter(object):
             self._cur_img_block_row += 0.5
             self._cur_img_block_col += 0.5
             self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
-        print (self._img_block_count)
-        return  ret, self._corners_list, self._img_names
+        return  (ret, self._corners_list, self._img_names)
 
     def _extract_img_from_ds(self):
         print ('\tDump imgs from camera dataset...')
@@ -325,7 +331,6 @@ class ImgExtracter(object):
 
         print ('\tDump imgs... ')
         sample_rate = self._get_sample_rate(ds, res_list, self.img_topic, 2000)
-        num_img_count = 0
         for res in res_list:
             for ts, data in ds.fetch(self.img_topic, ts_begin=res[0], ts_end=res[1]):
                 if np.random.uniform(0, 1) > sample_rate:

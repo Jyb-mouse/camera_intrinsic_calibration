@@ -1,7 +1,7 @@
 ################################### Developer use only ##############################
 threshold: 
   min_pin_difference: 0.1          ### Minimum rate(%) of change in the pin translation of the pattern
-  min_area_scale: 0.2             ### Minimum rate(%) of change in the x-direction position of the pattern
+  min_area_scale: 0.25             ### Minimum rate(%) of change in the x-direction position of the pattern
   min_area_difference: 0.005      ### Minimum rate(%) of change in the area of pattern
   min_rotation_differnece: 0.3       ### Minimum rate(%) of change in the rotation of pattern
   min_pattern_sharpness: 0.5      ### Minimum of sharpness allowed of the pattern

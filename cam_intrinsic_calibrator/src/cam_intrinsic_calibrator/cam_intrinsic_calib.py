@@ -26,6 +26,7 @@ class CamInstrinsicCalib(ImgExtracter):
         self.sum_images_need = base_cfg.get('sum_images_need')
 
         self.br = cv_bridge.CvBridge()
+        self.calib_status = False
 
         self.intri_calibrator = Calibrator(cfg_path)
 
@@ -45,7 +46,6 @@ class CamInstrinsicCalib(ImgExtracter):
                              monitored=True)
 
     def _setup_subscriber(self):
-        print ("img_topic: ", self.img_topic)
         img_sub = mw.Subscriber(self.img_topic, 
                                 CompressedImage,
                                 monitored=False)
@@ -63,33 +63,46 @@ class CamInstrinsicCalib(ImgExtracter):
     def _img_exracter_callback(self, data):
         cam_data = data.get(self.img_topic)
         if cam_data is None:
-            mw.logger.warn("no camera data input")
+            mw.logger.warn("no camera data input!")
+            return
+        if self.calib_status == False:
 
-        img = self.br.compressed_imgmsg_to_cv2(cam_data)
-        self.img_shape = (img.shape[1], img.shape[0])
-        if img.shape[1] < img.shape[0]:
-            self.img_shape = (img.shape[0], img.shape[1])
-            img = np.rot90(img)
+            img = self.br.compressed_imgmsg_to_cv2(cam_data)
+            self.img_shape = (img.shape[1], img.shape[0])
 
-        img_show = np.zeros(img.shape, np.uint8)
-        img_show = img.copy()
+            if img.shape[1] < img.shape[0]:
+                self.img_shape = (img.shape[0], img.shape[1])
+                img = np.rot90(img)
 
-        ret, self._corners_list, self._img_names = super(CamInstrinsicCalib, self).img_extract_from_topic(img,
-                                                    img_show,
-                                                    self.img_shape)
+            img_show = np.zeros(img.shape, np.uint8)
+            img_show = img.copy()
+
+            (ret,
+            self._corners_list,
+            self._img_names) = super(CamInstrinsicCalib, self).img_extract_from_topic(img,
+                                                                                    img_show,
+                                                                                    self.img_shape)
+            
+            self._pub_img_show(img_show, cam_data)
+        else:
+            img_show = np.zeros((576,1024,3), np.uint8)
+            img_show.fill(255)
+            text = 'camera{} intrinsic calibration is done! Thank you!'.format(self.cam_id)
+            cv.putText(img_show, text, (15, 280), cv.FONT_HERSHEY_PLAIN, 2, (0,255,0), 2)
+            self._pub_img_show(img_show, cam_data)
         
-        self._pub_img_show(img_show, cam_data)
-        print (len(self._corners_list))
+
         
-        if (len(self._corners_list) >= 50):
+        if (len(self._corners_list) >= 54) and self.calib_status == False:
             self._corners_list = np.array(self._corners_list)
             self._img_names = np.array(self._img_names)
             self.intri_calibrator.calibrate(self._corners_list, self._img_names, self.img_shape)
+            self.calib_status = True
 
     def img_extract(self):
         if self.input_method == 'dataset':
             corners_list, img_names, img_shape = \
-                self._extract_img_from_ds()
+                super(CamInstrinsicCalib, self)._extract_img_from_ds()
             res = self.intri_calibrator.calibrate(corners_list, img_names, img_shape)
             print (res)
             sys.exit(1)

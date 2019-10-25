@@ -520,11 +520,11 @@ class Calibrator(ImgExtracter):
         opt_k_mat = k_list[idx]
         opt_distortion = distort_list[idx]
 
-        print ("-----------rls K------------")
+        print ("-----------rls IntrinsicMatrix------------")
         print (rls_k_mat)
-        print ("-----------opt K------------")
+        print ("-----------opt IntrinsicMatrix------------")
         print (opt_k_mat)
-        print ("-------------D--------------")
+        print ("-------------Distortion--------------")
         print (opt_distortion)
         print ('reprojection error: {}'.format(ret_list[idx]))
 
@@ -630,7 +630,7 @@ class Calibrator(ImgExtracter):
         corners = [corners_coords, corners_list]
 
         print ("\nstart to calibrate camera intrinsic params...")
-        print ("-----------initial  K------------")
+        print ("-----------initial  IntrinsicMatrix------------")
         init_k_params, init_k_mat = self._compute_init_guess_intrinsic(self.cam_config, img_shape, self.flip_input_img)
         print (init_k_mat)
 
@@ -676,8 +676,7 @@ class Calibrator(ImgExtracter):
         params_res = save_params(self.data_dir, self._bag_name, self.cam_id, opt_k, opt_distortion,
                     img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, 
                     self.cam_config.get('focal_length'))
-
-        return params_res
+        print ("Done!")
 
 
 ## for test
