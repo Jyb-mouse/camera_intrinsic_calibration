@@ -93,7 +93,7 @@ class CamInstrinsicCalib(ImgExtracter):
         
 
         
-        if (len(self._corners_list) >= 54) and self.calib_status == False:
+        if (len(self._corners_list) >= self.sum_images_need) and self.calib_status == False:
             self._corners_list = np.array(self._corners_list)
             self._img_names = np.array(self._img_names)
             self.intri_calibrator.calibrate(self._corners_list, self._img_names, self.img_shape)

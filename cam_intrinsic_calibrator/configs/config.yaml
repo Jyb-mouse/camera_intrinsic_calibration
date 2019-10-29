@@ -1,9 +1,9 @@
 ################################### Developer use only ##############################
 threshold: 
-  min_pin_difference: 0.1          ### Minimum rate(%) of change in the pin translation of the pattern
+  min_pin_difference: 0.17          ### Minimum rate(%) of change in the pin translation of the pattern
   min_area_scale: 0.25             ### Minimum rate(%) of change in the x-direction position of the pattern
-  min_area_difference: 0.005      ### Minimum rate(%) of change in the area of pattern
-  min_rotation_differnece: 0.3       ### Minimum rate(%) of change in the rotation of pattern
+  min_area_difference: 0.008      ### Minimum rate(%) of change in the area of pattern
+  min_rotation_differnece: 0.08      ### Minimum rate(%) of change in the rotation of pattern
   min_pattern_sharpness: 0.5      ### Minimum of sharpness allowed of the pattern
   max_pattern_moving_speed: 5.0   ### Maximum of movement speed allowed of the pattern
   lambda: 1e-8
@@ -11,10 +11,10 @@ threshold:
 
 base:
   is_using_cv4: False             ### whether use opencv4 to detect corners
-  is_using_OR_calibrate: True     ### whether use the Object release method to calibrate
-  sum_images_need: 72             ### Number of images required
+  is_using_OR_calibrate: False     ### whether use the Object release method to calibrate
+  sum_images_need: 60             ### Number of images required
   img_block_shape: (2, 3)
-  max_iter: 1                    ###
+  max_iter: 2                    ###
 
 RLS: # while preform RLS regulation for each camera
   4mm: False
@@ -34,9 +34,9 @@ debug:
 #################################### User input ######################################
 camera:
   img_shape: [1024, 576]
-  is_cam390: True
+  is_cam390: False
   output_img_shape: [1024, 576]
-  id: 17
+  id: 4
   flip_input_img: False           # *must, true only if the input images is vertically captured, e.g. for rear cameras.
   flip_output_img: False          # *must, set true for horizontally calibrated camera but will be vertically installed.
                                   #   e.g rear cams
@@ -47,8 +47,8 @@ camera:
   # capture vertically, use vertically: flip_input_img = True, flip_output_img = True 
 
 data:
-  input_method: topic         # dataset or dataset
-  dataset_name: 2019-10-10-14-17-33 
+  input_method: topic         # dataset or topic
+  dataset_name: 2019-08-13-13-37-55 
   output_dir: /mnt/truenas/scratch/lingbo.yu/cam_intrinsic_result/
   num_thread: 6
 

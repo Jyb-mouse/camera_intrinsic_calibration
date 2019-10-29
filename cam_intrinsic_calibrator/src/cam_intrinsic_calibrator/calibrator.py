@@ -524,7 +524,7 @@ class Calibrator(ImgExtracter):
         print (rls_k_mat)
         print ("-----------opt IntrinsicMatrix------------")
         print (opt_k_mat)
-        print ("-------------Distortion--------------")
+        print ("----------------Distortion----------------")
         print (opt_distortion)
         print ('reprojection error: {}'.format(ret_list[idx]))
 

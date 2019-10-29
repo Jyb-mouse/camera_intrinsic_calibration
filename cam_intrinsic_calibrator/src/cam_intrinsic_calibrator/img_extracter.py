@@ -164,10 +164,18 @@ class ImgExtracter(object):
             t = min([param_distance(params[0:2], p[0:2]) for p in saved_params_list])
             if t <= self.min_pin_difference:
                 out_str = "Please move the pattren by panning!"
+                ret = False
                 if r <= self.min_rotation_difference:
                     out_str = "Please move the pattren by rotating!"
                     ret = False
                     return ret, out_str
+                else:
+                    # rotation check passed
+                    ret = True
+        # check skew
+        if params[2] >= 0.3:
+           out_str = "The skew is too large!"
+           ret = False 
 
         # check sharpness
         if params[5] < self.min_pattern_sharpness:

@@ -81,7 +81,7 @@ def save_params(output_file_path, bag_name, cam_id, intrinsic, distortion,
     if flip_input_img != flip_output_img:
         flip_intrinsic(intrinsic, override=True)
 
-    meta_dict = {'dataset': bag_name, 'calibrate_date': datetime.now().strftime('%Y-%m-%d'),
+    meta_dict = {'dir_name': bag_name, 'calibrate_date': datetime.now().strftime('%Y-%m-%d'),
                  'reproj_err': reproj_err, 'focal_length': focal_length}
     res_dict = {'distortion': [distortion.tolist()], 'intrinsic': intrinsic.tolist(),
                 'width': int(output_shape[0]), 'height': int(output_shape[1]),
