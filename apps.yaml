@@ -6,15 +6,35 @@ cam_intrinsic_calibrator:
   args:
     cam_id: 
       - 1
+      - 2
       - 3
       - 4
       - 6
       - 7
+      - 12
+      - 13
+      - 14
       - 15
       - 17
     is_cam390:
       - True
       - False
+    vehicle_name:
+      - Paladin1
+      - Paladin2
+      - Foton-3051
+      - Foton-3052
+      - Foton-3053
+      - Foton-3054
+      - Shaanqi-2006
+      - Shaanqi-2007
+      - Shaanqi-2008
+      - Shaanqi-2009
+      - Shaanqi-2010
+      - Shaanqi-2012
+      - Shaanqi-2013
+      - Shaanqi-2014
+      - Shaanqi-2016     
 
   in_topics:
     - /camera1/image_color/compressed
@@ -33,4 +53,3 @@ cam_intrinsic_calibrator:
     - /camera7/intrinsic_calib/compressed
     - /camera15/intrinsic_calib/compressed
     - /camera17/intrinsic_calib/compressed
-  

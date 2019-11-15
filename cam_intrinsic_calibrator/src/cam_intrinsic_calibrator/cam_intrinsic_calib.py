@@ -1,6 +1,7 @@
 import os
 import sys
 import yaml
+import time
 import cv_bridge
 import numpy as np
 import middleware as mw
@@ -17,7 +18,6 @@ class CamInstrinsicCalib(ImgExtracter):
         # if cfg_path is None:
         #     cfg_path = os.path.join(os.path.dirname(__file__),'../../config/config.yaml')
         
-        print (cfg_path)
         super(CamInstrinsicCalib, self).__init__(cfg_path)
 
         # get params from config
@@ -61,6 +61,7 @@ class CamInstrinsicCalib(ImgExtracter):
         self.pub.publish(img_pub)
 
     def _img_exracter_callback(self, data):
+        tt = time.time()
         cam_data = data.get(self.img_topic)
         if cam_data is None:
             mw.logger.warn("no camera data input!")
@@ -68,6 +69,12 @@ class CamInstrinsicCalib(ImgExtracter):
         if self.calib_status == False:
 
             img = self.br.compressed_imgmsg_to_cv2(cam_data)
+            # if self.cam_id in [4, 17]:
+            #     if self.is_cam390:
+            #         img = cv.resize(img, (960, 540)) 
+            #     else:
+            #         img = cv.resize(img, (1024, 576))            
+            #print("t1 = ", time.time() - tt)
             self.img_shape = (img.shape[1], img.shape[0])
 
             if img.shape[1] < img.shape[0]:
@@ -85,17 +92,17 @@ class CamInstrinsicCalib(ImgExtracter):
             
             self._pub_img_show(img_show, cam_data)
         else:
-            img_show = np.zeros((576,1024,3), np.uint8)
+            img_show = np.zeros((576, 1024, 3), np.uint8)
             img_show.fill(255)
             text = 'camera{} intrinsic calibration is done! Thank you!'.format(self.cam_id)
-            cv.putText(img_show, text, (15, 280), cv.FONT_HERSHEY_PLAIN, 2, (0,255,0), 2)
+            cv.putText(img_show, text, (15, 280), cv.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 2)
             self._pub_img_show(img_show, cam_data)
         
 
         
-        if (len(self._corners_list) >= self.sum_images_need) and self.calib_status == False:
-            self._corners_list = np.array(self._corners_list)
-            self._img_names = np.array(self._img_names)
+        if (len(self._corners_list) >= 35) and self.calib_status == False:
+            self._corners_list = np.array(self._corners_list[1:]) # drop the first one
+            self._img_names = np.array(self._img_names[1:])
             self.intri_calibrator.calibrate(self._corners_list, self._img_names, self.img_shape)
             self.calib_status = True
 

@@ -13,10 +13,12 @@ from .board import ChessBoard, RingBoard
 class PatternInfo:
     #findChessboardCornersSB()
     # TODO: Temporarily does not support cv4
-    corner_flags_cv4 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE
+    corner_flags_cv4 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FILTER_QUADS + cv.CALIB_CB_NORMALIZE_IMAGE
     #corner_flags_cv4 = cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_EXHAUSTIVE + cv.CALIB_CB_ACCURACY
     #findChessboardCorners()
-    corner_flags_cv2 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE
+    corner_flags_cv2 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FILTER_QUADS + cv.CALIB_CB_NORMALIZE_IMAGE
+
+    corner_flags_fast_check = cv.CALIB_CB_FAST_CHECK
 
     def __init__(self, cfg_path):
         # if cfg_path is None:
@@ -64,16 +66,10 @@ class PatternInfo:
             raise Exception("Invalid number of corners! %d corners. X: %d, Y: %d" 
                                 % (corners.shape[1] * corners.shape[0],xdim, ydim))
         
-        if self.is_using_cv4:
-            up_left = corners[-xdim, 0]
-            up_right = corners[0, 0]
-            down_left = corners[-1, 0]
-            down_right = corners[xdim-1, 0]
-        else:
-            up_left = corners[xdim-1, 0]
-            up_right = corners[-1, 0]
-            down_left = corners[0, 0]
-            down_right = corners[-xdim, 0]
+        up_left = corners[xdim-1, 0]
+        up_right = corners[-1, 0]
+        down_left = corners[0, 0]
+        down_right = corners[-xdim, 0]
 
         return (up_left, up_right, down_left, down_right)
 
@@ -103,7 +99,7 @@ class PatternInfo:
         (up_left, up_right, down_left, down_right) = self._get_vertex_corners(corners)
         center = np.sum((up_right, down_right, up_left, down_left), axis=0) / 4
         center_forward = center + [20, 0]
-        rotate = min(1.0, 1.3 * abs((math.pi / 4.) - self._angle(up_right, center, center_forward)))
+        rotate = min(1.0, 1.4 * abs((math.pi / 4.) - self._angle(up_right, center, center_forward)))
         return rotate
 
     def _get_pattern_loc_lable(self, corners, img_shape, block_shape):
@@ -140,11 +136,11 @@ class PatternInfo:
         points.append(down_left.astype(int))
         counter = np.array(points)
 
-        # Extend 10 pixels to the counter
-        left =  np.min(counter[:, 0]) - 10 # +1
-        right = np.max(counter[:, 0]) + 10 # -1
-        top  =  np.min(counter[:, 1]) - 10 # +1
-        bottom= np.max(counter[:, 1]) + 10 # -1
+        # Extend 5 pixels to the counter
+        left =  np.min(counter[:, 0]) - 5 # +1
+        right = np.max(counter[:, 0]) + 5 # -1
+        top  =  np.min(counter[:, 1]) - 5 # +1
+        bottom= np.max(counter[:, 1]) + 5 # -1
 
         _img_roi = img[top:bottom, left:right, :]
         return _img_roi
@@ -274,13 +270,18 @@ class PatternInfo:
             gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         else:
             gray = img
+        ttt = time.time()
+        find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_fast_check)
+        if not find:
+            return find, corners
+        print("t2-1 = ",time.time() - ttt)
         if self.is_using_cv4:
             find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv4)
         else:
             find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv2)
         if not find:
             return find, corners
-        
+        print ("t2-2 = ", time.time() - ttt)
         # If any corners are within BORDER pixels of the screen edge, reject the detection by setting ok to false
         # NOTE: This may cause problems with very low-resolution cameras, where 8 pixels is a non-negligible fraction
         BORDER = 8
@@ -288,29 +289,43 @@ class PatternInfo:
                     (BORDER < corners[i, 0, 1] < (h - BORDER)) 
                     for i in range(corners.shape[0])]):
             find = False
+            return find, None
 
         # TODO: how to make sure the pattern origin is the corners[0]?
         # make sure all corner arrays are going from top to bottom
         # when use findchessboardcorners(),there is no need to filp the corners
-        if corners[0,0,1] > corners[-1,0,1] and self.is_using_cv4:
+        if corners[0,0,1] < corners[-1,0,1] and corners[0,0,0] > corners[-1,0,0]:
             corners = np.copy(np.flipud(corners))
 
+        # Use a radius of half the minimum distance between corners. This should be large enough to snap to the
+        # correct corner, but not so large as to include a wrong corner in the search window
         if self.refine and find:
             distance = float("inf")
-            for row in range(pattern_shape[1] - 1):
-                for col in range(pattern_shape[0] - 1):
-                    index = row*pattern_shape[1] + col
-                    distance = min(distance, self._pdist(corners[index, 0], corners[index + 1, 0]))
-            for row in range(pattern_shape[1] - 2):
-                for col in range(pattern_shape[0]):
-                    index = row*pattern_shape[1] + col
-                    distance = min(distance, self._pdist(corners[index, 0], corners[index + pattern_shape[0], 0]))
-            radius = int(math.ceil(distance * 0.5))
+            # for row in range(pattern_shape[1] - 1):
+            #     for col in range(pattern_shape[0] - 1):
+            #         index = row*pattern_shape[1] + col
+            #         distance = min(distance, self._pdist(corners[index, 0], corners[index + 1, 0]))
+            # for row in range(pattern_shape[1] - 2):
+            #     for col in range(pattern_shape[0]):
+            #         index = row*pattern_shape[1] + col
+            #         distance = min(distance, self._pdist(corners[index, 0], corners[index + pattern_shape[0], 0]))
+            # radius = int(math.ceil(distance * 0.5))
+            min_distance = float("inf")
+            print("pattern_shape :",pattern_shape)
+            for row in range(pattern_shape[0]):
+                for col in range(pattern_shape[1] - 1):
+                    index = row*pattern_shape[0] + col
+                    min_distance = min(min_distance, self._pdist(corners[index, 0], corners[index + 1, 0]))
+            for row in range(pattern_shape[0] - 1):
+                for col in range(pattern_shape[1]):
+                    index = row*pattern_shape[0] + col
+                    min_distance = min(min_distance, self._pdist(corners[index, 0], corners[index + pattern_shape[1], 0]))
+            radius = int(math.ceil(min_distance * 0.5))
             cv.cornerSubPix(gray,
                             corners, 
-                            (radius,radius), 
-                            (-1,-1),
-                            ( cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.000001 ))
+                            (radius, radius), 
+                            (-1, -1),
+                            ( cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 90, 0.000001 ))
         return find, corners
 
     def get_pattern_info(self, img, block_shape = (2, 3), refine = True, usingCV4 = False):
@@ -342,6 +357,7 @@ class PatternInfo:
         loc_X = min(1.0, max(0.0, (np.mean(list_x) - border / 2) / (width  - border)))
         loc_Y = min(1.0, max(0.0, (np.mean(list_y) - border / 2) / (height - border)))
         area_scale = math.sqrt(area / (width * height))
+        #print("area_scale = ", area_scale)
         skew = self._get_pattrern_skew(corners)
         rotate = self._get_pattern_rotate(corners)
         sharpness = self._get_pattren_sharpness(img, corners)

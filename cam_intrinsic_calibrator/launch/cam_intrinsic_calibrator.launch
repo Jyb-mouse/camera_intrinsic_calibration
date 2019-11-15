@@ -18,6 +18,7 @@
 
   <arg name="cam_id" default="1"/>
   <arg name="is_cam390" default="True"/>
+  <arg name="vehicle_name" default="vehicle-default"/>
 
   <machine name="$(arg server)" address="$(arg server)" ssh-port="$(arg port)" user="$(arg user)" env-loader="$(arg env_loader)"/>
   
@@ -26,6 +27,7 @@
       <param name="cam_id" value="$(arg cam_id)"/>
       <param name="is_cam390" value="$(arg is_cam390)"/>
       <param name="heartbeat_id" value="$(arg heartbeat_id)"/>
+      <param name="vehicle_name" value="$(arg vehicle_name)"/>
     </node>
   </group>
 

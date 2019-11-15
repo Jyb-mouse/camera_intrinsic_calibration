@@ -17,8 +17,10 @@ from .detector_util import *
 class Calibrator(ImgExtracter):
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
 
-    cali_flags = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_ZERO_TANGENT_DIST + \
-                 cv.CALIB_FIX_K3 + cv.CALIB_FIX_K4 
+    cali_flags_short = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_ZERO_TANGENT_DIST
+    cali_flags_long = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_ZERO_TANGENT_DIST + \
+                 cv.CALIB_FIX_K3 + cv.CALIB_FIX_K4 + cv.CALIB_FIX_K5 + cv.CALIB_FIX_K6 + \
+                 cv.CALIB_FIX_K1 + cv.CALIB_FIX_K2
     calib_crit = [100, 1e-5]
     criteria=(cv.TERM_CRITERIA_EPS+cv.TERM_CRITERIA_MAX_ITER, 30, 0.000001)
 
@@ -59,7 +61,9 @@ class Calibrator(ImgExtracter):
         if self.cam_id in [6, 7]:
             self.flip_input_img = True
             self.flip_output_img = True
-        if self.cam_id in [1, 14, 15]:
+
+        # set camera config name 
+        if self.cam_id in [1, 2, 14, 15]:
             camera_cfg_name = "4mm_lens_config_390.yaml" if self.is_cam390 else \
                                "4mm_lens_config.yaml"
         elif self.cam_id in [3, 6, 7, 12, 13]:
@@ -68,6 +72,9 @@ class Calibrator(ImgExtracter):
         elif self.cam_id in [4, 17]:
             camera_cfg_name = "25mm_lens_config_390.yaml" if self.is_cam390 else \
                                "25mm_lens_config.yaml"
+        if "Paladin" in self.vehicle_name and self.cam_id in [1, 2, 3]:
+            camera_cfg_name = "6mm_lens_config.yaml"
+
         cam_cfg_path = os.path.join(os.path.dirname(cfg_path), camera_cfg_name)
         self.cam_config = yaml.safe_load(open(cam_cfg_path, 'r'))
 
@@ -81,9 +88,10 @@ class Calibrator(ImgExtracter):
 
         self.data_dir = self.output_dir
         self.progress_output_dir = os.path.join(self.data_dir, 'progress')
-        if not os.path.exists(self.progress_output_dir):
-            os.makedirs(self.progress_output_dir)
+        # if not os.path.exists(self.progress_output_dir):
+        #     os.makedirs(self.progress_output_dir)
 
+        self.cali_flags = self.cali_flags_short if self.cam_id in [1,3,6,7,14,15] else self.cali_flags_long
 
     @staticmethod
     def _build_term_crit(choices):

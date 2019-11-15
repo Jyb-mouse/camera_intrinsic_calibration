@@ -96,6 +96,7 @@ ENV/
 .spyproject
 
 # Rope project settings
+.pylintrc
 .ropeproject
 
 # mkdocs documentation

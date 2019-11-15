@@ -24,14 +24,11 @@ class ImgExtracter(object):
         ## init param from mw
         self.cam_id = mw.get_param('~cam_id', 1)
         self.is_cam390 = mw.get_param('~is_cam390', False)
+        self.vehicle_name = mw.get_param('~vehicle_name')
 
-        #init param from chonfig
-        # if cfg_path is None:
-        #    cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
-        print (cfg_path)
+        #init param from config
         cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
         
-
         threshold_cfg = cfg.get('threshold')
         self.min_pin_difference = threshold_cfg.get('min_pin_difference', 0.1)
         self.min_area_scale = threshold_cfg.get('min_area_scale', 0.2)
@@ -39,6 +36,7 @@ class ImgExtracter(object):
         self.min_rotation_difference = threshold_cfg.get('min_rotation_difference', 0.4)
         self.min_pattern_sharpness = threshold_cfg.get('min_pattern_sharpness', 100)
         self.max_pattern_moving_speed = threshold_cfg.get('max_pattern_moving_speed')
+        self.max_skew_limit = threshold_cfg.get('max_skew_limit')
         
         base_cfg = cfg.get('base')
         self.is_using_cv4 = base_cfg.get('is_using_cv4', False)
@@ -76,8 +74,7 @@ class ImgExtracter(object):
         if self.input_method == 'dataset':
             self._bag_name = self.dataset_name
         elif self.input_method == 'topic':
-            time_str =time.strftime('%Y-%m-%d-%H-%M', time.localtime(time.time()))
-            self._bag_name = time_str
+            self._bag_name = self.vehicle_name
         else:
             raise Exception('get no input method!')
 
@@ -111,7 +108,8 @@ class ImgExtracter(object):
         self._img_names = []
         self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col))
         self.img_shape = np.zeros(2)
-
+        self._corners_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
+        self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
     @staticmethod
     def _clearup_folder(output_dir):
         to_reset = True
@@ -149,37 +147,14 @@ class ImgExtracter(object):
         """
         return True if the pattern described by params is nice
         """
-        out_str = " "
+        out_str = "This is a nice pattern view! saved!"
         ret = True
-        if not saved_params_list:
-            return ret, out_str
         def param_distance(p1, p2):
             return sum([abs(a-b) for (a,b) in zip(p1, p2)])
-        
-        # TODO: What's a good threshold here? Should it be configurable?
-        if len(last_params) != 0:
-            # check rotate change
-            r = max([param_distance(params[2:4], last_params[2:4])])
-            # check translation change
-            t = min([param_distance(params[0:2], p[0:2]) for p in saved_params_list])
-            if t <= self.min_pin_difference:
-                out_str = "Please move the pattren by panning!"
-                ret = False
-                if r <= self.min_rotation_difference:
-                    out_str = "Please move the pattren by rotating!"
-                    ret = False
-                    return ret, out_str
-                else:
-                    # rotation check passed
-                    ret = True
-        # check skew
-        if params[2] >= 0.3:
-           out_str = "The skew is too large!"
-           ret = False 
 
         # check sharpness
         if params[5] < self.min_pattern_sharpness:
-            out_str = "Please increase the sharpness!"
+            out_str = "Please make the pattern clearer!"
             ret = False
             return ret, out_str
 
@@ -188,13 +163,40 @@ class ImgExtracter(object):
         #     if not self._judge_little_moving(corners, last_corners):
         #         return False
 
-        # check pattern area proportion
-        if (params[4] * img_block_sum) < self.min_area_scale or (params[4] > (1. / img_block_sum * 1.4)):
+        # check pattern area proportion,*1.4 for hasing got the lager area of the pattern
+        if (params[4] * img_block_sum) < self.min_area_scale or params[4] > ((1. / img_block_sum) * 1.4):
             out_str = "Please change the distance from pattern to camera!"
             ret = False
             return ret, out_str
+
+        # check skew
+        if params[2] >= self.max_skew_limit:
+            out_str = "The skew is too large!"
+            ret = False
+            return ret, out_str
+    
+        if not saved_params_list:
+            return ret, out_str
+    
+        # TODO: What's a good threshold here? Should it be configurable?
+        if len(last_params) != 0:
+            r = max([param_distance(params[2:4], last_params[2:4])])
+            # t = min([param_distance(params[0:2], p[0:2]) for p in saved_params_list])
+            t = min([param_distance(params[0:2], last_params[0:2])])
+            # check translation change
+            if t <= self.min_pin_difference:
+                out_str = "Please move the pattren by panning!"
+                ret = False
+                # check rotate change
+                if r <= self.min_rotation_difference:
+                    out_str = "Please move the pattren by rotating!"
+                    ret = False
+                    return ret, out_str
+                else:
+                    # rotation check passed
+                    ret = True
+
         # all check passed,return True
-        out_str = "This is a nice pattern view! saved!"
         return ret, out_str
     
     @staticmethod
@@ -224,7 +226,7 @@ class ImgExtracter(object):
 
         while row >= 1 and col >= 2:
             sum = sum + row*col
-            if (row < col):
+            if row < col:
                 col -= 1
             else:
                 row -= 1
@@ -235,20 +237,20 @@ class ImgExtracter(object):
         draw the axis of pattern coordinate system on the image
         """
         corner = tuple(corners[0].ravel())
-        img = cv.line(img, 
+        img = cv.line(img,
                       corner,
                       tuple(corners[1].ravel()),
-                      (255,0,0), # x axis is blue
-                      4) 
+                      (255, 0, 0), # x axis is blue
+                      4)
         img = cv.line(img,
                       corner,
                       tuple(corners[self.board.cb_shape[0]].ravel()),
-                      (0,255,0), # y axis is green
-                      4) 
+                      (0, 255, 0), # y axis is green
+                      4)
         img = cv.circle(img,
                         corner,
                         4,
-                        (0,0,255),
+                        (0, 0, 255),
                         -1)
         return img
 
@@ -256,24 +258,24 @@ class ImgExtracter(object):
     def _draw_satisfied_img_block(img, img_shape, img_block_row, pt0, pt1, put_str):
         p0 = tuple(pt0)
         p1 = tuple(pt1)
-        cv.rectangle(img, p0, p1, (0,0,255), 2)  
-        cv.line(img, p0, p1, (0,0,255), 2)
-        cv.line(img, 
-                (pt0[0], pt0[1]+int(img_shape[1]/int(img_block_row))), 
-                (pt1[0], pt1[1]-int(img_shape[1]/int(img_block_row))), 
-                (0,0,255), 
+        cv.rectangle(img, p0, p1, (0, 0, 255), 2)
+        cv.line(img, p0, p1, (0, 0, 255), 2)
+        cv.line(img,
+                (pt0[0], pt0[1]+int(img_shape[1]/int(img_block_row))),
+                (pt1[0], pt1[1]-int(img_shape[1]/int(img_block_row))),
+                (0, 0, 255),
                 2)
         cv.putText(img,
                    put_str,
-                   (pt0[0]+20,pt0[1]+20),
+                   (pt0[0]+20, pt0[1]+20),
                    cv.FONT_HERSHEY_PLAIN,
-                   1.4,
-                   (0,255,0),
+                   1,
+                   (0, 255, 0),
                    2)
         return img
 
     def img_extract_from_topic(self, img, img_show, img_shape):
-    
+        t1 = time.time()
         mw.logger.info('\tDump imgs from camera topic...')
         block_row = int(self._cur_img_block_row)
         block_col = int(self._cur_img_block_col)
@@ -281,63 +283,67 @@ class ImgExtracter(object):
         block_img_fill_success = True
         ret = False
         find, corners, params = self._pattern_info.get_pattern_info(img, (block_row, block_col))
+        #print("t2 =", time.time() - t1)
         if not find:
             out_str = "no corners! skipped"
         else:
-            ret, out_str = self._judge_nice_pattern_view(params, 
-                                                        corners, 
-                                                        self._last_params, 
-                                                        self._last_corners, 
-                                                        block_row * block_col, 
-                                                        self._params_list)
+            ret, out_str = self._judge_nice_pattern_view(params,
+                                                        corners,
+                                                        self._last_params,
+                                                        self._last_corners,
+                                                        block_row * block_col,
+                                                        self._params_list_kawrgs[params[6]])
             img_show = self._draw_pattern_axis(corners, img_show)
-
+            #print("t3 = ", time.time() - t1)
             if ret:
                 for i in range(len(self._img_block_count)):
                     if params[6] == i + 1 and self._img_block_count[i] < self.each_block_img_sum:
-                        self._params_list.append(params)
+                        self._params_list_kawrgs[params[6]].append(params)
                         self._corners_list.append(corners)
                         self._last_corners = corners
-                        self._last_params = params
                         self._img_block_count[i] += 1
                         ts = time.time()
                         img_name = str('{}.{}'.format(ts, self.img_format))
                         self._img_names.append(img_name)
                         ret = True
                         cv.imwrite(os.path.join(self.img_path, img_name), img)
+            self._last_params = params
+            #print("t4 = ", time.time() - t1)
         # draw on the img_show
         cv.putText(img_show, out_str, (20, img_shape[1]-15), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
         for i in range(len(self._img_block_count)):
             pt0, pt1 = self._get_block_vertices(i+1, (block_row, block_col), img_shape)
             if self._img_block_count[i] == self.each_block_img_sum:
-                img_show = self._draw_satisfied_img_block(img_show, img_shape, block_row, pt0, pt1, self.filled_str)    
+                img_show = self._draw_satisfied_img_block(img_show, img_shape, block_row, pt0, pt1, self.filled_str)
             else: 
                 text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
                 cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
                 block_img_fill_success = False
         # judge img blocks filled each time
+        #print("t5 = ", time.time() - t1)
         if block_img_fill_success:
             self._cur_img_block_row += 0.5
             self._cur_img_block_col += 0.5
             self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
+            self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
         return  (ret, self._corners_list, self._img_names)
 
     def _extract_img_from_ds(self):
-        print ('\tDump imgs from camera dataset...')
+        print('\tDump imgs from camera dataset...')
         if self._bag_path is not None:
             ds = Dataset(self._bag_path)
         else:
             ds = Dataset.open(self._bag_name)
 
-        print ('\tFinding best time segments for calibration...')
+        print('\tFinding best time segments for calibration...')
         corner_flags = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FAST_CHECK + cv.CALIB_CB_NORMALIZE_IMAGE
         res_list = self._find_calibrate_time(ds, self.img_topic, self.board.cb_shape, corner_flags)
 
-        print ('\tEffective time segments chosen:')
+        print('\tEffective time segments chosen:')
         for rl in res_list:
             print ([str(time2secs(l, ds.meta['ts_begin'])) + 's' for l in rl])
 
-        print ('\tDump imgs... ')
+        print('\tDump imgs... ')
         sample_rate = self._get_sample_rate(ds, res_list, self.img_topic, 2000)
         for res in res_list:
             for ts, data in ds.fetch(self.img_topic, ts_begin=res[0], ts_end=res[1]):
@@ -348,12 +354,12 @@ class ImgExtracter(object):
                     img_show = img.copy()
                     block_img_fill_success = True
                     if int(self._cur_img_block_row) <= self.img_block_shape[0]:
-                        find, corners, params = self._pattern_info.get_pattern_info(img, 
+                        find, corners, params = self._pattern_info.get_pattern_info(img,
                                                      (int(self._cur_img_block_row), int(self._cur_img_block_col)))
                         if not find:
                             out_str = "no corners! skipped"
                         else:
-                            ret, out_str = self._judge_nice_pattern_view(params, corners, self._last_params, self._last_corners, 
+                            ret, out_str = self._judge_nice_pattern_view(params, corners, self._last_params, self._last_corners,
                                                  int(self._cur_img_block_row) * int(self._cur_img_block_col), self._params_list)
                             img_show = self._draw_pattern_axis(corners, img_show)
                             if ret:
@@ -442,8 +448,8 @@ class ImgExtracter(object):
 
 
 
-# for test:
-if __name__ == '__main__':
-    from img_extracter import ImgExtracter
-    imgextracter = ImgExtracter(None)
-    corners_list, img_names, img_shape = imgextracter.img_extract()
+# # for test:
+# if __name__ == '__main__':
+#     from img_extracter import ImgExtracter
+#     imgextracter = ImgExtracter(None)
+#     corners_list, img_names, img_shape = imgextracter.img_extract()
