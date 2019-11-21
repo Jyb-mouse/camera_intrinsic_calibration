@@ -1,5 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.1.2] - 2019-11-21
+### Added
+- Added chinese tips show and cali_flags_short
+
 ## [1.1.1] - 2019-11-15
 ### Added
 - tspkg zoro version release 

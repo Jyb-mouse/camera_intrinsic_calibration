@@ -7,7 +7,8 @@ import time
 import shutil
 import cv2 as cv
 import numpy as np
-import middleware as mw 
+import middleware as mw
+from PIL import Image, ImageDraw, ImageFont
 from dataset_store import Dataset
 
 
@@ -79,13 +80,35 @@ class ImgExtracter(object):
             raise Exception('get no input method!')
 
         self._pattern_info = PatternInfo(cfg_path)
-
+        self.font_path = os.environ["TSPKG_PREFIX_PATH"] + '/share/cam_intrinsic_calibrator/font/font.ttf'
         self.output_dir = os.path.join(self.dir_output, self._bag_name, 'cam_{}'.format(self.cam_id))
         self.to_reset = self._clearup_folder(self.output_dir)
         self.img_path = os.path.join(self.output_dir, 'imgs/')
 
         self.img_topic = self.camera_topic_390.format(self.cam_id) if self.is_cam390 else self.camera_topic_pg.format(
                                                      self.cam_id)
+
+        # set constant
+        self.TEXT_CHINESE_OUTPUT = {
+            'TEXT_ONE' : '此标定板图像符合要求,已保存!',
+            'TEXT_TWO' : '请让图像中标定板更清晰!',
+            'TEXT_THREE' : '请让标定板在图像面积与当前图像区域大小基本相同!',
+            'TEXT_FOUR' : '请减小标定板偏斜角度!',
+            'TEXT_FIVE' : '请平移标定板!',
+            'TEXT_SIX' : '请从多个方向旋转标定板!',
+            'TEXT_SEVEN' : '未检测到完整标定板角点!',
+            'TEXT_EIGHT' : '此图像区域已经采集完毕!'
+        }
+        self.TEXT_ENGLISH_OUTPUT = {
+            'TEXT_ONE' : 'This is a nice pattern view! saved!',
+            'TEXT_TWO' : 'Please make the pattern clearer!',
+            'TEXT_THREE' : 'Please change the distance from pattern to camera!',
+            'TEXT_FOUR' : 'The skew is too large!',
+            'TEXT_FIVE' : 'Please move the pattren by panning!',
+            'TEXT_SIX' : 'Please move the pattren by rotating!',
+            'TEXT_SEVEN' : 'no corners!skipped',
+            'TEXT_EIGHT' : 'This image block has been filled!'
+        }
 
         self._extract_img_params_init()
 
@@ -110,6 +133,7 @@ class ImgExtracter(object):
         self.img_shape = np.zeros(2)
         self._corners_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
         self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
+
     @staticmethod
     def _clearup_folder(output_dir):
         to_reset = True
@@ -147,16 +171,18 @@ class ImgExtracter(object):
         """
         return True if the pattern described by params is nice
         """
-        out_str = "This is a nice pattern view! saved!"
+        out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_ONE']
+        out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_ONE']
         ret = True
         def param_distance(p1, p2):
             return sum([abs(a-b) for (a,b) in zip(p1, p2)])
 
         # check sharpness
         if params[5] < self.min_pattern_sharpness:
-            out_str = "Please make the pattern clearer!"
+            out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_TWO']
+            out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_TWO']
             ret = False
-            return ret, out_str
+            return ret, out_chinese_str, out_english_str
 
         ## check pattern moving speed
         # if self.max_pattern_moving_speed > 0:
@@ -165,39 +191,43 @@ class ImgExtracter(object):
 
         # check pattern area proportion,*1.4 for hasing got the lager area of the pattern
         if (params[4] * img_block_sum) < self.min_area_scale or params[4] > ((1. / img_block_sum) * 1.4):
-            out_str = "Please change the distance from pattern to camera!"
+            out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_THREE']
+            out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_THREE']
             ret = False
-            return ret, out_str
+            return ret, out_chinese_str, out_english_str
 
         # check skew
         if params[2] >= self.max_skew_limit:
-            out_str = "The skew is too large!"
+            out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_FOUR']
+            out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_FOUR']
             ret = False
-            return ret, out_str
+            return ret, out_chinese_str, out_english_str
     
         if not saved_params_list:
-            return ret, out_str
+            return ret, out_chinese_str, out_english_str
     
         # TODO: What's a good threshold here? Should it be configurable?
         if len(last_params) != 0:
-            r = max([param_distance(params[2:4], last_params[2:4])])
-            # t = min([param_distance(params[0:2], p[0:2]) for p in saved_params_list])
+            #r = max([param_distance(params[2:4], last_params[2:4])])
+            r = max([param_distance(params[2:4], p[2:4]) for p in saved_params_list])
             t = min([param_distance(params[0:2], last_params[0:2])])
             # check translation change
             if t <= self.min_pin_difference:
-                out_str = "Please move the pattren by panning!"
+                out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_FIVE']
+                out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_FIVE']
                 ret = False
                 # check rotate change
                 if r <= self.min_rotation_difference:
-                    out_str = "Please move the pattren by rotating!"
+                    out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_SIX']
+                    out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_SIX']
                     ret = False
-                    return ret, out_str
+                    return ret, out_chinese_str, out_english_str
                 else:
                     # rotation check passed
                     ret = True
 
         # all check passed,return True
-        return ret, out_str
+        return ret, out_chinese_str, out_english_str
     
     @staticmethod
     def _get_block_vertices(lable, img_block_shape, img_shape):
@@ -273,6 +303,15 @@ class ImgExtracter(object):
                    (0, 255, 0),
                    2)
         return img
+    
+    def cv_img_add_text(self, img, text, left, top, textColor=(255, 0, 0), textSize=20):
+        if (isinstance(img, np.ndarray)):  # opencv type
+            img = Image.fromarray(cv.cvtColor(img, cv.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(img)
+        fontText = ImageFont.truetype(
+            self.font_path, textSize, encoding="utf-8")
+        draw.text((left, top), text, textColor, font=fontText)
+        return cv.cvtColor(np.array(img), cv.COLOR_RGB2BGR)
 
     def img_extract_from_topic(self, img, img_show, img_shape):
         t1 = time.time()
@@ -285,9 +324,10 @@ class ImgExtracter(object):
         find, corners, params = self._pattern_info.get_pattern_info(img, (block_row, block_col))
         #print("t2 =", time.time() - t1)
         if not find:
-            out_str = "no corners! skipped"
+            out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_SEVEN']
+            out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_SEVEN']
         else:
-            ret, out_str = self._judge_nice_pattern_view(params,
+            ret, out_chinese_str, out_english_str = self._judge_nice_pattern_view(params,
                                                         corners,
                                                         self._last_params,
                                                         self._last_corners,
@@ -307,18 +347,25 @@ class ImgExtracter(object):
                         self._img_names.append(img_name)
                         ret = True
                         cv.imwrite(os.path.join(self.img_path, img_name), img)
+                    elif params[6] == i + 1 and self._img_block_count[i] == self.each_block_img_sum:
+                        out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_EIGHT']
+                        out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_EIGHT']
             self._last_params = params
             #print("t4 = ", time.time() - t1)
         # draw on the img_show
-        cv.putText(img_show, out_str, (20, img_shape[1]-15), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
         for i in range(len(self._img_block_count)):
             pt0, pt1 = self._get_block_vertices(i+1, (block_row, block_col), img_shape)
             if self._img_block_count[i] == self.each_block_img_sum:
                 img_show = self._draw_satisfied_img_block(img_show, img_shape, block_row, pt0, pt1, self.filled_str)
             else: 
                 text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
-                cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
+                cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0, 255, 0), 2)
                 block_img_fill_success = False
+        cv.putText(img_show, out_english_str, (20, img_shape[1]-20), cv.FONT_HERSHEY_PLAIN, 1.8, (0, 0, 255), 2)
+        if not isinstance(out_chinese_str, unicode):
+            out_chinese_str = out_chinese_str.decode('utf-8')
+        img_pub = self.cv_img_add_text(img_show, out_chinese_str, 20, img_shape[1] - 110, (255, 0, 0), 40)
+
         # judge img blocks filled each time
         #print("t5 = ", time.time() - t1)
         if block_img_fill_success:
@@ -326,7 +373,7 @@ class ImgExtracter(object):
             self._cur_img_block_col += 0.5
             self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
             self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
-        return  (ret, self._corners_list, self._img_names)
+        return  (ret, img_pub, self._corners_list, self._img_names)
 
     def _extract_img_from_ds(self):
         print('\tDump imgs from camera dataset...')

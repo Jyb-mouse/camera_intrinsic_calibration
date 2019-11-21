@@ -17,6 +17,7 @@ build: |
     install launch/* launch/cam_intrinsic_calibrator/
     install scripts/* lib/cam_intrinsic_calibrator/
     install configs/* share/cam_intrinsic_calibrator/configs/
+    install font/* share/cam_intrinsic_calibrator/font/
     install results/* share/cam_intrinsic_calibrator/results/
     chmod 777 ${INSTALL_DIR}/share/cam_intrinsic_calibrator/results/
     chmod 777 -R ${INSTALL_DIR}/share/cam_intrinsic_calibrator/results/*

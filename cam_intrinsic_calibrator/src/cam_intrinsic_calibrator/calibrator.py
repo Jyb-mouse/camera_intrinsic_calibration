@@ -17,7 +17,7 @@ from .detector_util import *
 class Calibrator(ImgExtracter):
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
 
-    cali_flags_short = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_ZERO_TANGENT_DIST
+    cali_flags_short = cv.CALIB_USE_INTRINSIC_GUESS
     cali_flags_long = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_ZERO_TANGENT_DIST + \
                  cv.CALIB_FIX_K3 + cv.CALIB_FIX_K4 + cv.CALIB_FIX_K5 + cv.CALIB_FIX_K6 + \
                  cv.CALIB_FIX_K1 + cv.CALIB_FIX_K2
@@ -116,8 +116,8 @@ class Calibrator(ImgExtracter):
         optical_focal_length = camera_cfg['focal_length']
         pixel_size = camera_cfg['pixel_size']
         film_shape = np.array(camera_cfg['film_shape'])
-        if img_flipped:
-            film_shape = film_shape[::-1]
+        # if img_flipped:
+        #     film_shape = film_shape[::-1]
 
         ratio = max(img_shape / film_shape.astype(float))
 

@@ -300,16 +300,6 @@ class PatternInfo:
         # Use a radius of half the minimum distance between corners. This should be large enough to snap to the
         # correct corner, but not so large as to include a wrong corner in the search window
         if self.refine and find:
-            distance = float("inf")
-            # for row in range(pattern_shape[1] - 1):
-            #     for col in range(pattern_shape[0] - 1):
-            #         index = row*pattern_shape[1] + col
-            #         distance = min(distance, self._pdist(corners[index, 0], corners[index + 1, 0]))
-            # for row in range(pattern_shape[1] - 2):
-            #     for col in range(pattern_shape[0]):
-            #         index = row*pattern_shape[1] + col
-            #         distance = min(distance, self._pdist(corners[index, 0], corners[index + pattern_shape[0], 0]))
-            # radius = int(math.ceil(distance * 0.5))
             min_distance = float("inf")
             print("pattern_shape :",pattern_shape)
             for row in range(pattern_shape[0]):
