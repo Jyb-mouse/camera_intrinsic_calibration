@@ -274,14 +274,14 @@ class PatternInfo:
         find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_fast_check)
         if not find:
             return find, corners
-        print("t2-1 = ",time.time() - ttt)
+        #print("t2-1 = ",time.time() - ttt)
         if self.is_using_cv4:
             find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv4)
         else:
             find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv2)
         if not find:
             return find, corners
-        print ("t2-2 = ", time.time() - ttt)
+        #print ("t2-2 = ", time.time() - ttt)
         # If any corners are within BORDER pixels of the screen edge, reject the detection by setting ok to false
         # NOTE: This may cause problems with very low-resolution cameras, where 8 pixels is a non-negligible fraction
         BORDER = 8

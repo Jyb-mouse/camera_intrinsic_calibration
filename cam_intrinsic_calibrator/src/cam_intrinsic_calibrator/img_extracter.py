@@ -85,8 +85,8 @@ class ImgExtracter(object):
         self.to_reset = self._clearup_folder(self.output_dir)
         self.img_path = os.path.join(self.output_dir, 'imgs/')
 
-        self.img_topic = self.camera_topic_390.format(self.cam_id) if self.is_cam390 else self.camera_topic_pg.format(
-                                                     self.cam_id)
+        self.img_topic = self.camera_topic_390.format(self.cam_id) \
+                        if self.is_cam390 else self.camera_topic_pg.format(self.cam_id)
 
         # set constant
         self.TEXT_CHINESE_OUTPUT = {
@@ -140,7 +140,7 @@ class ImgExtracter(object):
         if output_dir is not None:
             if os.path.exists(output_dir):
                 if len(os.listdir(output_dir)) > 0:
-                    print ('The folder {} is NOT empty\n' 
+                    print('The folder {} is NOT empty\n' 
                           'There is going to delete the data'.format(output_dir))
                     for p in os.listdir(output_dir):
                         path = os.path.join(output_dir, p)
@@ -150,6 +150,7 @@ class ImgExtracter(object):
                             os.remove(path)
                         else:
                             print ('Unknown type: {}'.format(path))
+                    print('data deleted!')
                 # else:
                 #     to_reset = False
             else:
@@ -345,6 +346,7 @@ class ImgExtracter(object):
                         ts = time.time()
                         img_name = str('{}.{}'.format(ts, self.img_format))
                         self._img_names.append(img_name)
+                        print("Got one frame : ", params)
                         ret = True
                         cv.imwrite(os.path.join(self.img_path, img_name), img)
                     elif params[6] == i + 1 and self._img_block_count[i] == self.each_block_img_sum:
@@ -399,48 +401,58 @@ class ImgExtracter(object):
                     self.img_shape = (img.shape[1], img.shape[0])
                     img_show = np.zeros(img.shape, np.uint8)
                     img_show = img.copy()
+                    block_row = int(self._cur_img_block_row)
+                    block_col = int(self._cur_img_block_col)
                     block_img_fill_success = True
-                    if int(self._cur_img_block_row) <= self.img_block_shape[0]:
+                    if block_row <= self.img_block_shape[0]:
                         find, corners, params = self._pattern_info.get_pattern_info(img,
-                                                     (int(self._cur_img_block_row), int(self._cur_img_block_col)))
+                                                     (block_row, block_col))
                         if not find:
-                            out_str = "no corners! skipped"
+                            out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_SEVEN']
+                            out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_SEVEN']
                         else:
-                            ret, out_str = self._judge_nice_pattern_view(params, corners, self._last_params, self._last_corners,
-                                                 int(self._cur_img_block_row) * int(self._cur_img_block_col), self._params_list)
+                            ret, out_chinese_str, out_english_str = self._judge_nice_pattern_view(params, corners, self._last_params, self._last_corners,
+                                                 block_row * block_col, self._params_list_kawrgs[params[6]])
                             img_show = self._draw_pattern_axis(corners, img_show)
                             if ret:
                                 for i in range(len(self._img_block_count)):
                                     if params[6] == i + 1 and self._img_block_count[i] < self.each_block_img_sum:
-                                        self._params_list.append(params)
+                                        self._params_list_kawrgs[params[6]].append(params)
                                         self._corners_list.append(corners)
                                         self._last_corners = corners
-                                        self._last_params = params
                                         self._img_block_count[i] += 1
                                         img_name = str('{}.{}'.format(ts, self.img_format))
                                         self._img_names.append(img_name)
-                                        print ("get : ", params)
+                                        print("Got one frame : ", params)
                                         cv.imwrite(os.path.join(self.img_path, img_name), img)
+                                    elif params[6] == i + 1 and self._img_block_count[i] == self.each_block_img_sum:
+                                        out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_EIGHT']
+                                        out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_EIGHT']
+                            self._last_params = params                            
                         # draw on the img_show
-                        print (out_str)
-                        cv.putText(img_show, out_str, (30, int(self.img_shape[1] / 10 * 9)), cv.FONT_HERSHEY_PLAIN, 1.4, (0,0,255), 2)
                         for i in range(len(self._img_block_count)):
                             pt0, pt1 = self._get_block_vertices(i+1, 
-                                                                (int(self._cur_img_block_row),int(self._cur_img_block_col)), 
+                                                                (block_row, block_col), 
                                                                 self.img_shape)
                             if self._img_block_count[i] == self.each_block_img_sum:
-                                img_show = self._draw_satisfied_img_block(img_show, self.img_shape, self._cur_img_block_row, pt0, pt1)     
+                                img_show = self._draw_satisfied_img_block(img_show, self.img_shape, block_row, pt0, pt1)     
                             else: 
                                 text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
                                 cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
                                 block_img_fill_success = False
+                        cv.putText(img_show, out_english_str, (20, img_shape[1]-20), cv.FONT_HERSHEY_PLAIN, 1.8, (0, 0, 255), 2)
+                        if not isinstance(out_chinese_str, unicode):
+                            out_chinese_str = out_chinese_str.decode('utf-8')
+                        img_pub = self.cv_img_add_text(img_show, out_chinese_str, 20, img_shape[1] - 110, (255, 0, 0), 40)
                     if block_img_fill_success:
                         self._cur_img_block_row += 0.5
                         self._cur_img_block_col += 0.5
-                        self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)            
+                        self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
+                        self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}            
             
                     if len(self._corners_list) == self.each_block_img_sum * self.block_sum:
-                        print ('------images extraction done!------')
+                        print('------images extraction done!------')
+                        ret = True
                         break
                 corners_list = np.array(self._corners_list)
                 img_names = np.array(self._img_names)
