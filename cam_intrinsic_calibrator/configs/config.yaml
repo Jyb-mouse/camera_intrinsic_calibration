@@ -50,8 +50,9 @@ camera:
 data:
   input_method: topic         # dataset or topic
   dataset_name: 2019-08-13-13-37-55 
-  output_dir: /root/.tspkg/share/cam_intrinsic_calibrator/results/ #/root/.tspkg/share/cam_intrinsic_calibrator/results/  
+  output_dir: /mnt/truenas/scratch/lingbo.yu/cam_intrinsic_results/ #/root/.tspkg/share/cam_intrinsic_calibrator/results/  
                                                                     #/mnt/truenas/scratch/lingbo.yu/cam_intrinsic_results/
+                                                                    
   num_thread: 6
 
 pattern:

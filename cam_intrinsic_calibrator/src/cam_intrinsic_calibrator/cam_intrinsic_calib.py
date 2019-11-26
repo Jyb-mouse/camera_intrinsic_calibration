@@ -102,8 +102,9 @@ class CamInstrinsicCalib(ImgExtracter):
         if (len(self._corners_list) >= self.sum_images_need - 6) and self.calib_status == False:
             self._corners_list = np.array(self._corners_list[1:]) # drop the first one
             self._img_names = np.array(self._img_names[1:])
+
+            self.calib_status = True # before calibration for exceptionError
             self.intri_calibrator.calibrate(self._corners_list, self._img_names, self.img_shape)
-            self.calib_status = True
 
     def img_extract(self):
         if self.input_method == 'dataset':

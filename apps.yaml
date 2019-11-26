@@ -38,18 +38,26 @@ cam_intrinsic_calibrator:
 
   in_topics:
     - /camera1/image_color/compressed
+    - /camera2/image_color/compressed
     - /camera3/image_color/compressed
     - /camera4/image_color/compressed
     - /camera6/image_color/compressed
     - /camera7/image_color/compressed
+    - /camera12/image_color/compressed
+    - /camera13/image_color/compressed
+    - /camera14/image_color/compressed
     - /camera15/image_color/compressed
     - /camera17/image_color/compressed
   
   out_topics:
     - /camera1/intrinsic_calib/compressed
+    - /camera2/intrinsic_calib/compressed
     - /camera3/intrinsic_calib/compressed
     - /camera4/intrinsic_calib/compressed
     - /camera6/intrinsic_calib/compressed
     - /camera7/intrinsic_calib/compressed
+    - /camera12/intrinsic_calib/compressed
+    - /camera13/intrinsic_calib/compressed
+    - /camera14/intrinsic_calib/compressed
     - /camera15/intrinsic_calib/compressed
     - /camera17/intrinsic_calib/compressed

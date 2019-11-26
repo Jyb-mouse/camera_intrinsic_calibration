@@ -13,6 +13,7 @@ from .util import save_params, outliers_iqr, outliers_norm_std
 from .img_extracter import ImgExtracter
 
 from .detector_util import *
+from .vm_api import VM
 
 class Calibrator(ImgExtracter):
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
@@ -26,10 +27,13 @@ class Calibrator(ImgExtracter):
 
     min_num_img_todo_sampling = 200
 
+    api_key = 'bin.chao:c69a0874434141f7e37cd824b02482a82c62224da2fc0d460b3ed984b159bb60'
+    reviewer = "bin.chao"
+    url = "http://vm2.bj.tusimple.ai:5024"
+    file_path = '/root/.tspkg/share/cam_intrinsic_calibrator/results'
+
     def __init__(self, cfg_path):
-        # if cfg_path is None:
-        #     cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
-        #     cfg_path = 
+
         cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
         
         super(Calibrator ,self).__init__(cfg_path)
@@ -74,6 +78,9 @@ class Calibrator(ImgExtracter):
                                "25mm_lens_config.yaml"
         if "Paladin" in self.vehicle_name and self.cam_id in [1, 2, 3]:
             camera_cfg_name = "6mm_lens_config.yaml"
+            self.output_img_shape = (1280, 720)
+
+        self.cali_flags = self.cali_flags_short if self.cam_id in [1,3,6,7,14,15] else self.cali_flags_long
 
         cam_cfg_path = os.path.join(os.path.dirname(cfg_path), camera_cfg_name)
         self.cam_config = yaml.safe_load(open(cam_cfg_path, 'r'))
@@ -91,7 +98,7 @@ class Calibrator(ImgExtracter):
         # if not os.path.exists(self.progress_output_dir):
         #     os.makedirs(self.progress_output_dir)
 
-        self.cali_flags = self.cali_flags_short if self.cam_id in [1,3,6,7,14,15] else self.cali_flags_long
+        self._vm = VM(self.api_key, self.vehicle_name, self.reviewer, self.url, self.dir_output, self.cam_id)
 
     @staticmethod
     def _build_term_crit(choices):
@@ -680,11 +687,16 @@ class Calibrator(ImgExtracter):
             iter_num += 1
             print ("----------------------")
 
-        print ("saving intrinsic parameters...")
+        print ("saving camera-{} intrinsic parameters of {}...".format(self.cam_id, self.vehicle_name))
         params_res = save_params(self.data_dir, self._bag_name, self.cam_id, opt_k, opt_distortion,
                     img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, 
-                    self.cam_config.get('focal_length'))
-        print ("Done!")
+                    self.cam_config.get('focal_length'), self.vehicle_name)
+        print ("Saving in local is Done!")
+
+        self._vm.update_intrinsic()
+        vm_update_res = self._vm.update_config_yaml()
+        print("Update VM is Done!")
+        print(vm_update_res)
 
 
 ## for test
