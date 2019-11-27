@@ -50,7 +50,8 @@ class VM(object):
             os.system("tsp install vehicle_config_{} -y".format(
                 self._vehicle.lower()))
         else:
-            raise Exception('\n---------This is a new vehicle and the VM cannot be updated!!! ---------\n')
+            #raise Exception('\n---------This is a new vehicle and the VM cannot be updated!!! ---------\n')
+            print('\n---------This is a new vehicle and the VM cannot be updated!!! ---------\n')
 
     # update extrinsic by config.yaml
     def update_extrinsic(self):
