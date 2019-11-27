@@ -64,32 +64,31 @@ def flip_intrinsic(intrinsic, override=False):
 
 def save_params(output_file_path, bag_name, cam_id, intrinsic, distortion,
                 input_shape, output_shape, flip_input_img, flip_output_img,
-                reproj_err, focal_length):
+                reproj_err, focal_length, vehicle_name):
 
     output_file_path = os.path.expanduser(output_file_path)
     if not os.path.exists(output_file_path):
         os.makedirs(output_file_path)
 
     # flip default output image shape
-    if flip_input_img:
-        output_shape = output_shape[::-1]
+    # if flip_input_img:
+    #     output_shape = output_shape[::-1]
 
     # scale intrinsic, assert input_shape and output_shape has the same ratio
     scale_cam_intrinsic(intrinsic, input_shape, output_shape, override=True)
 
     # flip output image shape if needed
-    if flip_input_img != flip_output_img:
+    if flip_input_img == flip_output_img == True:
         flip_intrinsic(intrinsic, override=True)
 
     meta_dict = {'dir_name': bag_name, 'calibrate_date': datetime.now().strftime('%Y-%m-%d'),
-                 'reproj_err': reproj_err, 'focal_length': focal_length}
+                 'vehicle': vehicle_name,'reproj_err': reproj_err, 'focal_length': focal_length}
     res_dict = {'distortion': [distortion.tolist()], 'intrinsic': intrinsic.tolist(),
                 'width': int(output_shape[0]), 'height': int(output_shape[1]),
                 'meta': meta_dict}
     with open(os.path.join(output_file_path, 'camera-{}.yaml'.format(cam_id)), 'w') as f:
         yaml.safe_dump(res_dict, f)
     return res_dict
-
 
 def time2secs(time, ts_begin):
     """

@@ -301,7 +301,6 @@ class PatternInfo:
         # correct corner, but not so large as to include a wrong corner in the search window
         if self.refine and find:
             min_distance = float("inf")
-            print("pattern_shape :",pattern_shape)
             for row in range(pattern_shape[0]):
                 for col in range(pattern_shape[1] - 1):
                     index = row*pattern_shape[0] + col
