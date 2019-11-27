@@ -687,16 +687,18 @@ class Calibrator(ImgExtracter):
             iter_num += 1
             print ("----------------------")
 
-        print ("saving camera-{} intrinsic parameters of {}...".format(self.cam_id, self.vehicle_name))
+        # Save results after calibration
+        print ("Saving camera-{} intrinsic parameters of {}...".format(self.cam_id, self.vehicle_name))
         params_res = save_params(self.data_dir, self._bag_name, self.cam_id, opt_k, opt_distortion,
                     img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, 
                     self.cam_config.get('focal_length'), self.vehicle_name)
-        print ("Saving in local is Done!")
+        print ("Save in local is Done!")
 
-        self._vm.update_intrinsic()
-        vm_update_res = self._vm.update_config_yaml()
-        print("Update VM is Done!")
-        print(vm_update_res)
+        # Update VM after calibration
+        # self._vm.update_intrinsic()
+        # vm_update_res = self._vm.update_config_yaml()
+        # print("Update VM is Done!")
+        # print(vm_update_res)
 
 
 ## for test

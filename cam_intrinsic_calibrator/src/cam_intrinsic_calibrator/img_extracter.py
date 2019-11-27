@@ -210,7 +210,8 @@ class ImgExtracter(object):
         # TODO: What's a good threshold here? Should it be configurable?
         if len(last_params) != 0:
             #r = max([param_distance(params[2:4], last_params[2:4])])
-            r = max([param_distance(params[2:4], p[2:4]) for p in saved_params_list])
+            r2 = min([param_distance(params[2:3], p[2:3]) for p in saved_params_list])
+            r3 = min([param_distance(params[3:4], p[3:4]) for p in saved_params_list])
             t = min([param_distance(params[0:2], last_params[0:2])])
             # check translation change
             if t <= self.min_pin_difference:
@@ -218,7 +219,7 @@ class ImgExtracter(object):
                 out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_FIVE']
                 ret = False
                 # check rotate change
-                if r <= self.min_rotation_difference:
+                if r2 <= self.min_rotation_difference and r3 <= self.min_rotation_difference:
                     out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_SIX']
                     out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_SIX']
                     ret = False

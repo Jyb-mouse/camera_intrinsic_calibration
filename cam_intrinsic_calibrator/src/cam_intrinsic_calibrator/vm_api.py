@@ -161,31 +161,30 @@ class VM(object):
                     extrinsic_lst.append(path[0]+'_to_'+path[1]+'.yaml')
         return extrinsic_lst
 
+# for test and example 
+# def main():
+#     # api_key = "bin.chao:c028560da5f37b71bd1f23fd55c524c1c03a84c502e3c7d8839e3cfbbcf22263"
+#     api_key = 'bin.chao:c69a0874434141f7e37cd824b02482a82c62224da2fc0d460b3ed984b159bb60'
+#     vehicle = 'shaanqi-2003'
+#     reviewer = "bin.chao"
+#     url = "http://vm2.bj.tusimple.ai:5024"
+#     file_path = '/root/.tspkg/share/cam_intrinsic_calibrator/results'
 
-def main():
-    # api_key = "bin.chao:c028560da5f37b71bd1f23fd55c524c1c03a84c502e3c7d8839e3cfbbcf22263"
-    api_key = 'bin.chao:c69a0874434141f7e37cd824b02482a82c62224da2fc0d460b3ed984b159bb60'
-    vehicle = 'shaanqi-2003'
-    reviewer = "bin.chao"
-    url = "http://vm2.bj.tusimple.ai:5024"
-    file_path = '/root/.tspkg/share/cam_intrinsic_calibrator/results'
+#     vm = VM(api_key, vehicle, reviewer, url, file_path, 1)
 
-    vm = VM(api_key, vehicle, reviewer, url, file_path, 1)
+#     # print vm._get_calib_path()
+#     # print vm._get_calib_cfg_path()
+#     # print vm._get_intrinsic_sensors()
+#     # print vm._get_extrinsic_pairs()
 
-    # print vm._get_calib_path()
-    # print vm._get_calib_cfg_path()
-    # print vm._get_intrinsic_sensors()
-    # print vm._get_extrinsic_pairs()
+#     print(vm.update_config_yaml())
+#     # vm._get_extrinsic_pairs()
+#     print(vm.update_extrinsic())
+#     vm.update_intrinsic()
+#     # vm.commit()
+#     # vm.get_workspace()
+#     # # print(vm._get_vehicle_cfg())
+#     # print(vm.get_sensor_layout())
 
-    print(vm.update_config_yaml())
-    # vm._get_extrinsic_pairs()
-    print(vm.update_extrinsic())
-    vm.update_intrinsic()
-    # vm.commit()
-    # vm.get_workspace()
-    # # print(vm._get_vehicle_cfg())
-    # print(vm.get_sensor_layout())
-
-
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

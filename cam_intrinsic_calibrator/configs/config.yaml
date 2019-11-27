@@ -1,12 +1,12 @@
 ################################### Developer use only ##############################
 threshold: 
-  min_pin_difference: 0.3        ### Minimum rate(%) of change in the pin translation of the pattern
+  min_pin_difference: 0.25        ### Minimum rate(%) of change in the pin translation of the pattern
   min_area_scale: 0.4             ### Minimum rate(%) of change in the x-direction position of the pattern
   min_area_difference: 0.008      ### Minimum rate(%) of change in the area of pattern
-  min_rotation_differnece: 0.15      ### Minimum rate(%) of change in the rotation of pattern
+  min_rotation_differnece: 0.07      ### Minimum rate(%) of change in the rotation of pattern
   min_pattern_sharpness: 0.25      ### Minimum of sharpness allowed of the pattern
   max_pattern_moving_speed: 5.0   ### Maximum of movement speed allowed of the pattern
-  max_skew_limit: 0.38
+  max_skew_limit: 0.35
   lambda: 1e-8
   batch_size: 50
 
@@ -50,7 +50,7 @@ camera:
 data:
   input_method: topic         # dataset or topic
   dataset_name: 2019-08-13-13-37-55 
-  output_dir: /mnt/truenas/scratch/lingbo.yu/cam_intrinsic_results/ #/root/.tspkg/share/cam_intrinsic_calibrator/results/  
+  output_dir: /root/.tspkg/share/cam_intrinsic_calibrator/results/ #/root/.tspkg/share/cam_intrinsic_calibrator/results/  
                                                                     #/mnt/truenas/scratch/lingbo.yu/cam_intrinsic_results/
                                                                     
   num_thread: 6
