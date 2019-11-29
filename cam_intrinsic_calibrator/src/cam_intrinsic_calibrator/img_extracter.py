@@ -34,7 +34,7 @@ class ImgExtracter(object):
         self.min_pin_difference = threshold_cfg.get('min_pin_difference', 0.1)
         self.min_area_scale = threshold_cfg.get('min_area_scale', 0.2)
         self.min_area_difference = threshold_cfg.get('min_area_difference', 0.005)
-        self.min_rotation_difference = threshold_cfg.get('min_rotation_difference', 0.4)
+        self.min_rotation_difference = threshold_cfg.get('min_rotation_difference', 0.04)
         self.min_pattern_sharpness = threshold_cfg.get('min_pattern_sharpness', 100)
         self.max_pattern_moving_speed = threshold_cfg.get('max_pattern_moving_speed')
         self.max_skew_limit = threshold_cfg.get('max_skew_limit')
@@ -219,7 +219,7 @@ class ImgExtracter(object):
                 out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_FIVE']
                 ret = False
                 # check rotate change
-                if r2 <= self.min_rotation_difference and r3 <= self.min_rotation_difference:
+                if (r2 <= self.min_rotation_difference) and (r3 <= self.min_rotation_difference):
                     out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_SIX']
                     out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_SIX']
                     ret = False

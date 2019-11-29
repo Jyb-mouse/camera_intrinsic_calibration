@@ -1,8 +1,8 @@
 import os
 import time
 import yaml
-import cv2 as cv
 import numpy as np
+import cv2 as cv
 import math
 import scipy.ndimage
 
@@ -94,12 +94,12 @@ class PatternInfo:
     def _get_pattern_rotate(self, corners):
         """
         return pattern rotation
-        1.3 is the scale changed from pi/4 to 1
+        1.25 is the scale changed from pi/4 to 1
         """
         (up_left, up_right, down_left, down_right) = self._get_vertex_corners(corners)
         center = np.sum((up_right, down_right, up_left, down_left), axis=0) / 4
         center_forward = center + [20, 0]
-        rotate = min(1.0, 1.4 * abs((math.pi / 4.) - self._angle(up_right, center, center_forward)))
+        rotate = min(1.0, 1.25 * abs((math.pi / 4.) - self._angle(up_right, center, center_forward)))
         return rotate
 
     def _get_pattern_loc_lable(self, corners, img_shape, block_shape):
@@ -358,15 +358,15 @@ class PatternInfo:
         return find, corners, params
 
 # # for test:
-# if __name__ == '__main__':
-#     from patternInfo import PatternInfo
-#     img = cv.imread("./imgs/41.png",cv.IMREAD_COLOR)
-#     # cv.imshow("pic", img)
-#     # cv.waitKey(0)
-#     pattern_info = PatternInfo(None)
-#     find, corners, params = pattern_info.get_pattern_info(img, (2,3))
+if __name__ == '__main__':
+    from patternInfo import PatternInfo
+    img = cv.imread("/home/tusimple/py_trainning/imgs/25.png",cv.IMREAD_COLOR)
+    # cv.imshow("pic", img)
+    # cv.waitKey(0)
+    pattern_info = PatternInfo(None)
+    find, corners, params = pattern_info.get_pattern_info(img, (2,3))
 
-#     print (type(params))
-#     print (find)
-#     print (corners)
-#     print (params)     
+    print (type(params))
+    print (find)
+    print (corners)
+    print (params)     
