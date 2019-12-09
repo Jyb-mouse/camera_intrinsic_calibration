@@ -1,5 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.1.5] - 2019-12-09
+### Changed
+- changed for threshold opt and add vehicle in app.yaml
+
 ## [1.1.4] - 2019-11-27
 ### Changed
 - Changed for extracter opt and info print

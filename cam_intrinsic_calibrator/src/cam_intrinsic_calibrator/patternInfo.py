@@ -99,7 +99,7 @@ class PatternInfo:
         (up_left, up_right, down_left, down_right) = self._get_vertex_corners(corners)
         center = np.sum((up_right, down_right, up_left, down_left), axis=0) / 4
         center_forward = center + [20, 0]
-        rotate = min(1.0, 1.25 * abs((math.pi / 4.) - self._angle(up_right, center, center_forward)))
+        rotate = min(1.0, 1.1 * abs((math.pi / 4.) - self._angle(up_right, center, center_forward)))
         return rotate
 
     def _get_pattern_loc_lable(self, corners, img_shape, block_shape):
