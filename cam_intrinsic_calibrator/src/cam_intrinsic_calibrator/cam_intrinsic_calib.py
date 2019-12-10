@@ -99,7 +99,7 @@ class CamInstrinsicCalib(ImgExtracter):
             cv.putText(img_show, text, (15, 280), cv.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 2)
             self._pub_img_show(img_show, cam_data)
         
-        if (len(self._corners_list) >= self.sum_images_need - 3) and self.calib_status == False:
+        if (len(self._corners_list) >= self.sum_images_need) and self.calib_status == False:
             self._corners_list = np.array(self._corners_list[1:]) # drop the first one
             self._img_names = np.array(self._img_names[1:])
 

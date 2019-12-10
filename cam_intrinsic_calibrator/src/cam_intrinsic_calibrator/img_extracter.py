@@ -43,6 +43,7 @@ class ImgExtracter(object):
         self.is_using_cv4 = base_cfg.get('is_using_cv4', False)
         self.sum_images_need = base_cfg.get('sum_images_need', 120)
         self.img_block_shape = eval(base_cfg.get('img_block_shape'))
+        self.block_img_need = base_cfg.get('block_img_need', 5.5)
 
         data_cfg = cfg.get('data')
         self.input_method = data_cfg.get('input_method')
@@ -114,7 +115,6 @@ class ImgExtracter(object):
 
     def _extract_img_params_init(self):
         self.block_sum = self._get_img_block_sum(self.img_block_shape)
-        self.each_block_img_sum = int(self.sum_images_need / self.block_sum)
 
         # check path
         self.img_path = os.path.join(self.output_dir, 'imgs/')
@@ -320,6 +320,7 @@ class ImgExtracter(object):
         print('\tDump imgs from camera topic...')
         block_row = int(self._cur_img_block_row)
         block_col = int(self._cur_img_block_col)
+        each_block_img_sum = int(self.block_img_need)
 
         block_img_fill_success = True
         ret = False
@@ -339,7 +340,7 @@ class ImgExtracter(object):
             #print("t3 = ", time.time() - t1)
             if ret:
                 for i in range(len(self._img_block_count)):
-                    if params[6] == i + 1 and self._img_block_count[i] < self.each_block_img_sum:
+                    if params[6] == i + 1 and self._img_block_count[i] < each_block_img_sum:
                         self._params_list_kawrgs[params[6]].append(params)
                         self._corners_list.append(corners)
                         self._last_corners = corners
@@ -350,7 +351,7 @@ class ImgExtracter(object):
                         print("Got one frame : ", params)
                         ret = True
                         cv.imwrite(os.path.join(self.img_path, img_name), img)
-                    elif params[6] == i + 1 and self._img_block_count[i] == self.each_block_img_sum:
+                    elif params[6] == i + 1 and self._img_block_count[i] == each_block_img_sum:
                         out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_EIGHT']
                         out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_EIGHT']
             self._last_params = params
@@ -358,10 +359,10 @@ class ImgExtracter(object):
         # draw on the img_show
         for i in range(len(self._img_block_count)):
             pt0, pt1 = self._get_block_vertices(i+1, (block_row, block_col), img_shape)
-            if self._img_block_count[i] == self.each_block_img_sum:
+            if self._img_block_count[i] == each_block_img_sum:
                 img_show = self._draw_satisfied_img_block(img_show, img_shape, block_row, pt0, pt1, self.filled_str)
             else: 
-                text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
+                text = "img_num: {}/{}".format(int(self._img_block_count[i]), each_block_img_sum)
                 cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0, 255, 0), 2)
                 block_img_fill_success = False
         cv.putText(img_show, out_english_str, (20, img_shape[1]-20), cv.FONT_HERSHEY_PLAIN, 1.8, (0, 0, 255), 2)
@@ -374,6 +375,7 @@ class ImgExtracter(object):
         if block_img_fill_success:
             self._cur_img_block_row += 0.5
             self._cur_img_block_col += 0.5
+            self.block_img_need -= 0.5
             self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
             self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
         return  (ret, img_pub, self._corners_list, self._img_names)
@@ -404,6 +406,7 @@ class ImgExtracter(object):
                     img_show = img.copy()
                     block_row = int(self._cur_img_block_row)
                     block_col = int(self._cur_img_block_col)
+                    each_block_img_sum = int(self.block_img_need)
                     block_img_fill_success = True
                     if block_row <= self.img_block_shape[0]:
                         find, corners, params = self._pattern_info.get_pattern_info(img,
@@ -417,7 +420,7 @@ class ImgExtracter(object):
                             img_show = self._draw_pattern_axis(corners, img_show)
                             if ret:
                                 for i in range(len(self._img_block_count)):
-                                    if params[6] == i + 1 and self._img_block_count[i] < self.each_block_img_sum:
+                                    if params[6] == i + 1 and self._img_block_count[i] < each_block_img_sum:
                                         self._params_list_kawrgs[params[6]].append(params)
                                         self._corners_list.append(corners)
                                         self._last_corners = corners
@@ -426,7 +429,7 @@ class ImgExtracter(object):
                                         self._img_names.append(img_name)
                                         print("Got one frame : ", params)
                                         cv.imwrite(os.path.join(self.img_path, img_name), img)
-                                    elif params[6] == i + 1 and self._img_block_count[i] == self.each_block_img_sum:
+                                    elif params[6] == i + 1 and self._img_block_count[i] == each_block_img_sum:
                                         out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_EIGHT']
                                         out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_EIGHT']
                             self._last_params = params                            
@@ -435,10 +438,10 @@ class ImgExtracter(object):
                             pt0, pt1 = self._get_block_vertices(i+1, 
                                                                 (block_row, block_col), 
                                                                 self.img_shape)
-                            if self._img_block_count[i] == self.each_block_img_sum:
+                            if self._img_block_count[i] == each_block_img_sum:
                                 img_show = self._draw_satisfied_img_block(img_show, self.img_shape, block_row, pt0, pt1)     
                             else: 
-                                text = "img_num: {}/{}".format(int(self._img_block_count[i]), self.each_block_img_sum)
+                                text = "img_num: {}/{}".format(int(self._img_block_count[i]), each_block_img_sum)
                                 cv.putText(img_show, text, (pt0[0]+15, pt0[1]+30), cv.FONT_HERSHEY_PLAIN, 1.4, (0,255,0), 2)
                                 block_img_fill_success = False
                         cv.putText(img_show, out_english_str, (20, self.img_shape[1]-20), cv.FONT_HERSHEY_PLAIN, 1.8, (0, 0, 255), 2)
@@ -448,10 +451,11 @@ class ImgExtracter(object):
                     if block_img_fill_success:
                         self._cur_img_block_row += 0.5
                         self._cur_img_block_col += 0.5
+                        self.block_img_need -= 0.5
                         self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
                         self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}            
             
-                    if len(self._corners_list) == self.each_block_img_sum * self.block_sum:
+                    if len(self._corners_list) == each_block_img_sum * self.block_sum:
                         print('------images extraction done!------')
                         ret = True
                         break

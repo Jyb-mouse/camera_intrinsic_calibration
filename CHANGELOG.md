@@ -1,5 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.1.6] - 2019-12-10
+### Changed
+- changed number of each img block need
+
 ## [1.1.5] - 2019-12-09
 ### Changed
 - changed for threshold opt and add vehicle in app.yaml

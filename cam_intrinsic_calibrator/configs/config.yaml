@@ -3,7 +3,7 @@ threshold:
   min_pin_difference: 0.2        ### Minimum rate(%) of change in the pin translation of the pattern
   min_area_scale: 0.4             ### Minimum rate(%) of change in the x-direction position of the pattern
   min_area_difference: 0.008      ### Minimum rate(%) of change in the area of pattern
-  min_rotation_difference: 0.15     ### Minimum rate(%) of change in the rotation of pattern
+  min_rotation_difference: 0.18     ### Minimum rate(%) of change in the rotation of pattern
   min_pattern_sharpness: 0.25      ### Minimum of sharpness allowed of the pattern
   max_pattern_moving_speed: 5.0   ### Maximum of movement speed allowed of the pattern
   max_skew_limit: 0.35
@@ -13,8 +13,9 @@ threshold:
 base:
   is_using_cv4: False             ### whether use opencv4 to detect corners
   is_using_OR_calibrate: False     ### whether use the Object release method to calibrate
-  sum_images_need: 48             ### Number of images required
+  sum_images_need: 50             ### Number of images required
   img_block_shape: (2, 3)
+  block_img_need: 5.5        ### NUmber of each image block required at the beginning 
   max_iter: 4                    ###
 
 RLS: # while preform RLS regulation for each camera
