@@ -15,8 +15,6 @@ from .img_extracter import ImgExtracter
 
 class CamInstrinsicCalib(ImgExtracter):
     def __init__(self, cfg_path):
-        # if cfg_path is None:
-        #     cfg_path = os.path.join(os.path.dirname(__file__),'../../config/config.yaml')
         
         super(CamInstrinsicCalib, self).__init__(cfg_path)
 
@@ -69,12 +67,6 @@ class CamInstrinsicCalib(ImgExtracter):
         if self.calib_status == False:
 
             img = self.br.compressed_imgmsg_to_cv2(cam_data)
-            # if self.cam_id in [4, 17]:
-            #     if self.is_cam390:
-            #         img = cv.resize(img, (960, 540)) 
-            #     else:
-            #         img = cv.resize(img, (1024, 576))            
-            #print("t1 = ", time.time() - tt)
             self.img_shape = (img.shape[1], img.shape[0])
 
             if img.shape[1] < img.shape[0]:

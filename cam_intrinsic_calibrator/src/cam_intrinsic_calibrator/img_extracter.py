@@ -34,7 +34,7 @@ class ImgExtracter(object):
         self.min_pin_difference = threshold_cfg.get('min_pin_difference', 0.1)
         self.min_area_scale = threshold_cfg.get('min_area_scale', 0.2)
         self.min_area_difference = threshold_cfg.get('min_area_difference', 0.005)
-        self.min_rotation_difference = threshold_cfg.get('min_rotation_difference', 0.04)
+        self.min_rotation_difference = threshold_cfg.get('min_rotation_difference', 0.15)
         self.min_pattern_sharpness = threshold_cfg.get('min_pattern_sharpness', 100)
         self.max_pattern_moving_speed = threshold_cfg.get('max_pattern_moving_speed')
         self.max_skew_limit = threshold_cfg.get('max_skew_limit')
@@ -306,7 +306,7 @@ class ImgExtracter(object):
                    2)
         return img
     
-    def cv_img_add_text(self, img, text, left, top, textColor=(255, 0, 0), textSize=20):
+    def _cv_img_add_text(self, img, text, left, top, textColor=(255, 0, 0), textSize=20):
         if (isinstance(img, np.ndarray)):  # opencv type
             img = Image.fromarray(cv.cvtColor(img, cv.COLOR_BGR2RGB))
         draw = ImageDraw.Draw(img)
@@ -315,7 +315,18 @@ class ImgExtracter(object):
         draw.text((left, top), text, textColor, font=fontText)
         return cv.cvtColor(np.array(img), cv.COLOR_RGB2BGR)
 
+    def _update_img_block(self):
+        self._cur_img_block_row += 0.5
+        self._cur_img_block_col += 0.5
+        self.block_img_need -= 0.5
+        self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
+        self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
+
     def img_extract_from_topic(self, img, img_show, img_shape):
+        """
+        judge the pattern image each callback 
+        return the updated result list each callback
+        """
         t1 = time.time()
         print('\tDump imgs from camera topic...')
         block_row = int(self._cur_img_block_row)
@@ -325,7 +336,7 @@ class ImgExtracter(object):
         block_img_fill_success = True
         ret = False
         find, corners, params = self._pattern_info.get_pattern_info(img, (block_row, block_col))
-        #print("t2 =", time.time() - t1)
+
         if not find:
             out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_SEVEN']
             out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_SEVEN']
@@ -337,7 +348,6 @@ class ImgExtracter(object):
                                                         block_row * block_col,
                                                         self._params_list_kawrgs[params[6]])
             img_show = self._draw_pattern_axis(corners, img_show)
-            #print("t3 = ", time.time() - t1)
             if ret:
                 for i in range(len(self._img_block_count)):
                     if params[6] == i + 1 and self._img_block_count[i] < each_block_img_sum:
@@ -355,7 +365,6 @@ class ImgExtracter(object):
                         out_chinese_str = self.TEXT_CHINESE_OUTPUT['TEXT_EIGHT']
                         out_english_str = self.TEXT_ENGLISH_OUTPUT['TEXT_EIGHT']
             self._last_params = params
-            #print("t4 = ", time.time() - t1)
         # draw on the img_show
         for i in range(len(self._img_block_count)):
             pt0, pt1 = self._get_block_vertices(i+1, (block_row, block_col), img_shape)
@@ -368,16 +377,11 @@ class ImgExtracter(object):
         cv.putText(img_show, out_english_str, (20, img_shape[1]-20), cv.FONT_HERSHEY_PLAIN, 1.8, (0, 0, 255), 2)
         if not isinstance(out_chinese_str, unicode):
             out_chinese_str = out_chinese_str.decode('utf-8')
-        img_pub = self.cv_img_add_text(img_show, out_chinese_str, 20, img_shape[1] - 110, (255, 0, 0), 40)
+        img_pub = self._cv_img_add_text(img_show, out_chinese_str, 20, img_shape[1] - 110, (255, 0, 0), 40)
 
         # judge img blocks filled each time
-        #print("t5 = ", time.time() - t1)
         if block_img_fill_success:
-            self._cur_img_block_row += 0.5
-            self._cur_img_block_col += 0.5
-            self.block_img_need -= 0.5
-            self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
-            self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}
+            self._update_img_block()
         return  (ret, img_pub, self._corners_list, self._img_names)
 
     def _extract_img_from_ds(self):
@@ -447,13 +451,9 @@ class ImgExtracter(object):
                         cv.putText(img_show, out_english_str, (20, self.img_shape[1]-20), cv.FONT_HERSHEY_PLAIN, 1.8, (0, 0, 255), 2)
                         if not isinstance(out_chinese_str, unicode):
                             out_chinese_str = out_chinese_str.decode('utf-8')
-                        img_pub = self.cv_img_add_text(img_show, out_chinese_str, 20, self.img_shape[1] - 110, (255, 0, 0), 40)
+                        img_pub = self._cv_img_add_text(img_show, out_chinese_str, 20, self.img_shape[1] - 110, (255, 0, 0), 40)
                     if block_img_fill_success:
-                        self._cur_img_block_row += 0.5
-                        self._cur_img_block_col += 0.5
-                        self.block_img_need -= 0.5
-                        self._img_block_count = np.zeros(int(self._cur_img_block_row) * int(self._cur_img_block_col)).astype(int)
-                        self._params_list_kawrgs = {i + 1 : list() for i in range(self.img_block_shape[0]*self.img_block_shape[1])}            
+                        self._update_img_block()           
             
                     if len(self._corners_list) == each_block_img_sum * self.block_sum:
                         print('------images extraction done!------')
