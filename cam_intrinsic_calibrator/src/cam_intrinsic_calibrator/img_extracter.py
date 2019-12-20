@@ -84,7 +84,6 @@ class ImgExtracter(object):
         self.font_path = os.environ["TSPKG_PREFIX_PATH"] + '/share/cam_intrinsic_calibrator/font/font.ttf'
         self.output_dir = os.path.join(self.dir_output, self._bag_name, 'cam_{}'.format(self.cam_id))
         self.to_reset = self._clearup_folder(self.output_dir)
-        self.img_path = os.path.join(self.output_dir, 'imgs/')
 
         self.img_topic = self.camera_topic_390.format(self.cam_id) \
                         if self.is_cam390 else self.camera_topic_pg.format(self.cam_id)
@@ -117,6 +116,7 @@ class ImgExtracter(object):
         self.block_sum = self._get_img_block_sum(self.img_block_shape)
 
         # check path
+        self.to_reset = self._clearup_folder(self.output_dir)
         self.img_path = os.path.join(self.output_dir, 'imgs/')
         if not os.path.exists(self.img_path):
             os.makedirs(self.img_path)

@@ -21,16 +21,11 @@ class PatternInfo:
     corner_flags_fast_check = cv.CALIB_CB_FAST_CHECK
 
     def __init__(self, cfg_path):
-        # if cfg_path is None:
-        #     cfg_path = os.path.join(os.path.dirname(__file__), '../../config/config.yaml')
 
         cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
 
         base_cfg = cfg.get('base')
         self.is_using_cv4 = base_cfg.get('is_using_cv4', False)
-
-        camera_cfg = cfg.get('camera')
-        self.img_shape = camera_cfg.get('img_shape')
 
         pattern_cfg = cfg.get('pattern')
         self.is_ring = pattern_cfg.get('is_ring', False)
@@ -255,8 +250,10 @@ class PatternInfo:
             gray_roi = cv.cvtColor(img_roi, cv.COLOR_BGR2GRAY)
         else:
             gray_roi = img_roi
+        # self way 
         sharpness = self._sharpness_estimation(img_roi)
-        #sharpness = cv.Laplacian(gray_roi, cv.CV_64F).var()
+        # opencv way
+        # sharpness = cv.Laplacian(gray_roi, cv.CV_64F).var()
         return sharpness
 
     def _get_corners(self, img):
@@ -274,14 +271,12 @@ class PatternInfo:
         find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_fast_check)
         if not find:
             return find, corners
-        #print("t2-1 = ",time.time() - ttt)
         if self.is_using_cv4:
             find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv4)
         else:
             find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv2)
         if not find:
             return find, corners
-        #print ("t2-2 = ", time.time() - ttt)
         # If any corners are within BORDER pixels of the screen edge, reject the detection by setting ok to false
         # NOTE: This may cause problems with very low-resolution cameras, where 8 pixels is a non-negligible fraction
         BORDER = 8
@@ -346,7 +341,6 @@ class PatternInfo:
         loc_X = min(1.0, max(0.0, (np.mean(list_x) - border / 2) / (width  - border)))
         loc_Y = min(1.0, max(0.0, (np.mean(list_y) - border / 2) / (height - border)))
         area_scale = math.sqrt(area / (width * height))
-        #print("area_scale = ", area_scale)
         skew = self._get_pattrern_skew(corners)
         rotate = self._get_pattern_rotate(corners)
         sharpness = self._get_pattren_sharpness(img, corners)
@@ -358,15 +352,15 @@ class PatternInfo:
         return find, corners, params
 
 # # for test:
-if __name__ == '__main__':
-    from patternInfo import PatternInfo
-    img = cv.imread("/home/tusimple/py_trainning/imgs/25.png",cv.IMREAD_COLOR)
-    # cv.imshow("pic", img)
-    # cv.waitKey(0)
-    pattern_info = PatternInfo(None)
-    find, corners, params = pattern_info.get_pattern_info(img, (2,3))
+# if __name__ == '__main__':
+#     from patternInfo import PatternInfo
+#     img = cv.imread("/home/tusimple/py_trainning/imgs/25.png",cv.IMREAD_COLOR)
+#     # cv.imshow("pic", img)
+#     # cv.waitKey(0)
+#     pattern_info = PatternInfo(None)
+#     find, corners, params = pattern_info.get_pattern_info(img, (2,3))
 
-    print (type(params))
-    print (find)
-    print (corners)
-    print (params)     
+#     print (type(params))
+#     print (find)
+#     print (corners)
+#     print (params)     

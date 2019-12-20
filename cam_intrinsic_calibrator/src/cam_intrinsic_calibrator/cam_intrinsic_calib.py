@@ -29,7 +29,7 @@ class CamInstrinsicCalib(ImgExtracter):
         self.intri_calibrator = Calibrator(cfg_path)
 
     def setup(self):
-            # set publisher
+        # set publisher
         self.pub = mw.Publisher('/camera{}/intrinsic_calib/compressed'.format(
             self.cam_id),
             CompressedImage,

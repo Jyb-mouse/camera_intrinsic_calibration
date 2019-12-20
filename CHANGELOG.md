@@ -1,5 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.1.7] - 2019-12-20
+### Changed
+- opt code and fix init bug
+
 ## [1.1.6] - 2019-12-10
 ### Changed
 - changed number of each img block need

@@ -4,18 +4,19 @@ import cv2 as cv
 import shutil
 import numpy as np
 import matplotlib.pyplot as plt
+import middleware as mw
 
 from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
 from .util import save_params, outliers_iqr, outliers_norm_std
-from .img_extracter import ImgExtracter
 
+from .board import ChessBoard
 from .detector_util import *
 from .vm_api import VM
 
-class Calibrator(ImgExtracter):
+class Calibrator:
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
 
     cali_flags_short = cv.CALIB_USE_INTRINSIC_GUESS
@@ -36,9 +37,15 @@ class Calibrator(ImgExtracter):
 
         cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
         
-        super(Calibrator ,self).__init__(cfg_path)
+        # set calib_crit
         self.cali_crit = self._build_term_crit(self.calib_crit)
 
+        # get params from mw
+        self.cam_id = mw.get_param('~cam_id', 1)
+        self.is_cam390 = mw.get_param('~is_cam390', False)
+        self.vehicle_name = mw.get_param('~vehicle_name')
+
+        # get params from config
         threshold_cfg = cfg.get('threshold')
         self.batch_size = threshold_cfg.get('batch_size')
         self.reg = float(threshold_cfg.get('lambda'))
@@ -58,6 +65,8 @@ class Calibrator(ImgExtracter):
         self.output_img_shape = camera_cfg.get('output_img_shape')
         self.flip_input_img = camera_cfg.get('flip_input_img')
         self.flip_output_img = camera_cfg.get('flip_output_img')
+
+        # init params
         if self.is_cam390:
             self.output_img_shape = [960, 540]
         else:
@@ -87,18 +96,34 @@ class Calibrator(ImgExtracter):
 
         data_cfg = cfg.get('data')
         self.num_thread = data_cfg.get('num_thread')
+        self.dir_output = data_cfg.get('output_dir')
+        self.input_method = data_cfg.get('input_method')
+        if self.input_method == 'dataset':
+            self.is_cam390 = camera_cfg.get('is_cam390', False)
+            self.cam_id = camera_cfg.get('id')
 
         pattern_cfg = cfg.get('pattern')
         self.is_ring = pattern_cfg.get('is_ring', False)
         self.pattern_shape = eval(pattern_cfg.get('pattern_shape'))
         self.corner_distance = pattern_cfg.get('corner_distance')
+        self.board = ChessBoard(eval(pattern_cfg.get('pattern_shape')),
+                                float(pattern_cfg.get('corner_distance')))
 
-        self.data_dir = self.output_dir
+        self.data_dir = os.path.join(self.dir_output, self.vehicle_name, 'cam_{}'.format(self.cam_id))
         self.progress_output_dir = os.path.join(self.data_dir, 'progress')
         # if not os.path.exists(self.progress_output_dir):
         #     os.makedirs(self.progress_output_dir)
 
-        self._vm = VM(self.api_key, self.vehicle_name, self.reviewer, self.url, self.dir_output, self.cam_id)
+        self._bag_name = None
+        if self.input_method == 'dataset':
+            self._bag_name = self.dataset_name
+        elif self.input_method == 'topic':
+            self._bag_name = self.vehicle_name
+        else:
+            raise Exception('get no input method!')
+
+        # init vm_update
+        self._vm = VM(self.api_key, self._bag_name, self.reviewer, self.url, self.dir_output, self.cam_id)
 
     @staticmethod
     def _build_term_crit(choices):
@@ -637,7 +662,6 @@ class Calibrator(ImgExtracter):
     
     def calibrate(self, corners_list, img_names, img_shape):
   
-        iter_img_sum = 0
         success= False
 
         corners_coords = self._get_corner_coords(len(corners_list))
