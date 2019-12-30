@@ -89,7 +89,7 @@ class PatternInfo:
     def _get_pattern_rotate(self, corners):
         """
         return pattern rotation
-        1.25 is the scale changed from pi/4 to 1
+        1.1 is the scale changed from pi/4 to 1
         """
         (up_left, up_right, down_left, down_right) = self._get_vertex_corners(corners)
         center = np.sum((up_right, down_right, up_left, down_left), axis=0) / 4

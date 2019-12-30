@@ -1,5 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
+## [1.1.8] - 2019-12-30
+### Changed
+- change min_rotation threshold param name
+
 ## [1.1.7] - 2019-12-20
 ### Changed
 - opt code and fix init bug
