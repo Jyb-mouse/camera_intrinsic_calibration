@@ -64,7 +64,7 @@ def flip_intrinsic(intrinsic, override=False):
 
 def save_params(output_file_path, bag_name, cam_id, intrinsic, distortion,
                 input_shape, output_shape, flip_input_img, flip_output_img,
-                reproj_err, focal_length, vehicle_name):
+                reproj_err, focal_length, vehicle_name, cam_type):
 
     output_file_path = os.path.expanduser(output_file_path)
     if not os.path.exists(output_file_path):
@@ -82,7 +82,7 @@ def save_params(output_file_path, bag_name, cam_id, intrinsic, distortion,
         flip_intrinsic(intrinsic, override=True)
 
     meta_dict = {'dir_name': bag_name, 'calibrate_date': datetime.now().strftime('%Y-%m-%d'),
-                 'vehicle': vehicle_name,'reproj_err': reproj_err, 'focal_length': focal_length}
+                 'vehicle': vehicle_name,'reproj_err': reproj_err, 'focal_length': focal_length, 'cam_type': cam_type}
     res_dict = {'distortion': [distortion.tolist()], 'intrinsic': intrinsic.tolist(),
                 'width': int(output_shape[0]), 'height': int(output_shape[1]),
                 'meta': meta_dict}

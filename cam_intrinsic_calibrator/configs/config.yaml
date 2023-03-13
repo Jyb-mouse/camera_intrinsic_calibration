@@ -35,10 +35,10 @@ debug:
 
 #################################### User input ######################################
 camera:
-  img_shape: [1024, 576]
-  is_cam390: False
-  output_img_shape: [1024, 576]
-  id: 4
+  img_shape: [1920, 1020]
+  output_img_shape: [1920, 1020]
+  id: 1
+  cam_type: HK_X8B
   flip_input_img: False           # *must, true only if the input images is vertically captured, e.g. for rear cameras.
   flip_output_img: False          # *must, set true for horizontally calibrated camera but will be vertically installed.
                                   #   e.g rear cams
@@ -49,15 +49,12 @@ camera:
   # capture vertically, use vertically: flip_input_img = True, flip_output_img = True 
 
 data:
-  input_method: topic         # dataset or topic
-  dataset_name: 2019-08-13-13-37-55 
-  output_dir: /root/.tspkg/share/cam_intrinsic_calibrator/results/ #/root/.tspkg/share/cam_intrinsic_calibrator/results/  
-                                                                    #/mnt/truenas/scratch/lingbo.yu/cam_intrinsic_results/
-                                                                    
+  data_path: /mnt/share/lingboyu/output/intrinsic
+  vehicle_name: map-1                               
   num_thread: 6
 
 pattern:
   is_ring: False
-  pattern_shape: (8, 11)
-  corner_distance: 50
+  pattern_shape: (7, 10)
+  corner_distance: 70
 ################################################################################

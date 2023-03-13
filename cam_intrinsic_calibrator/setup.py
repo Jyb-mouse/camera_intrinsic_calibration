@@ -9,7 +9,7 @@ setup(
     package_dir={'':'src'},
     install_requires=[
         'setuptools', 'yaml', 'cv2', 'numpy', 'cv_bridge',
-        'middleware', 'math', 'shutil', 'multiprocessing',
+        'math', 'shutil', 'multiprocessing',
         'functools'
     ],
     data_files=[

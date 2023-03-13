@@ -1,20 +1,20 @@
 import os
 import yaml
+import time
 import cv2 as cv
 import shutil
 import numpy as np
 import matplotlib.pyplot as plt
-import middleware as mw
 
 from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
+from calib_utils.io_utils import mkdir
 
 from .util import save_params, outliers_iqr, outliers_norm_std
 
 from .board import ChessBoard
 from .detector_util import *
-from .vm_api import VM
 
 class Calibrator:
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
@@ -28,22 +28,12 @@ class Calibrator:
 
     min_num_img_todo_sampling = 200
 
-    api_key = 'bin.chao:c69a0874434141f7e37cd824b02482a82c62224da2fc0d460b3ed984b159bb60'
-    reviewer = "bin.chao"
-    url = "http://vm2.bj.tusimple.ai:5024"
-    file_path = '/root/.tspkg/share/cam_intrinsic_calibrator/results'
-
     def __init__(self, cfg_path):
 
         cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
         
         # set calib_crit
         self.cali_crit = self._build_term_crit(self.calib_crit)
-
-        # get params from mw
-        self.cam_id = mw.get_param('~cam_id', 1)
-        self.is_cam390 = mw.get_param('~is_cam390', False)
-        self.vehicle_name = mw.get_param('~vehicle_name')
 
         # get params from config
         threshold_cfg = cfg.get('threshold')
@@ -61,47 +51,28 @@ class Calibrator:
         self.save = debug_cfg.get('save')
         self.verbose = debug_cfg.get('verbose')
 
+        # setup camera calibration config
         camera_cfg = cfg.get('camera')
+        self.cam_id = camera_cfg.get('cam_id')
+        self.cam_type = camera_cfg.get('cam_type')
         self.output_img_shape = camera_cfg.get('output_img_shape')
         self.flip_input_img = camera_cfg.get('flip_input_img')
         self.flip_output_img = camera_cfg.get('flip_output_img')
-
-        # init params
-        if self.is_cam390:
-            self.output_img_shape = [960, 540]
-        else:
-            self.output_img_shape = [1024,576]
-        if self.cam_id in [6, 7]:
-            self.flip_input_img = True
-            self.flip_output_img = True
+        self.cali_flags = self.cali_flags_short
 
         # set camera config name 
-        if self.cam_id in [1, 2, 14, 15]:
-            camera_cfg_name = "4mm_lens_config_390.yaml" if self.is_cam390 else \
-                               "4mm_lens_config.yaml"
-        elif self.cam_id in [3, 6, 7, 12, 13]:
-            camera_cfg_name = "12mm_lens_config_390.yaml" if self.is_cam390 else \
-                               "12mm_lens_config.yaml"
-        elif self.cam_id in [4, 17]:
-            camera_cfg_name = "25mm_lens_config_390.yaml" if self.is_cam390 else \
-                               "25mm_lens_config.yaml"
-        if "Paladin" in self.vehicle_name and self.cam_id in [1, 2, 3]:
-            camera_cfg_name = "6mm_lens_config.yaml"
-            self.output_img_shape = (1280, 720)
-
-        self.cali_flags = self.cali_flags_short if self.cam_id in [1,3,6,7,14,15] else self.cali_flags_long
-
+        camera_cfg_name = "{}_config.yaml".format(self.cam_type)
         cam_cfg_path = os.path.join(os.path.dirname(cfg_path), camera_cfg_name)
         self.cam_config = yaml.safe_load(open(cam_cfg_path, 'r'))
 
+        # setup data config
         data_cfg = cfg.get('data')
         self.num_thread = data_cfg.get('num_thread')
         self.dir_output = data_cfg.get('output_dir')
         self.input_method = data_cfg.get('input_method')
-        if self.input_method == 'dataset':
-            self.is_cam390 = camera_cfg.get('is_cam390', False)
-            self.cam_id = camera_cfg.get('id')
+        self.vehicle_name = data_cfg.get('vehicle_name')
 
+        # setup pattern config
         pattern_cfg = cfg.get('pattern')
         self.is_ring = pattern_cfg.get('is_ring', False)
         self.pattern_shape = eval(pattern_cfg.get('pattern_shape'))
@@ -109,21 +80,14 @@ class Calibrator:
         self.board = ChessBoard(eval(pattern_cfg.get('pattern_shape')),
                                 float(pattern_cfg.get('corner_distance')))
 
-        self.data_dir = os.path.join(self.dir_output, self.vehicle_name, 'cam_{}'.format(self.cam_id))
+        time_stamp = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
+        self._bag_name = time_stamp
+        self.data_dir = os.path.join(self.dir_output, self.vehicle_name, 'cam_{}'.format(self.cam_id), time_stamp)
         self.progress_output_dir = os.path.join(self.data_dir, 'progress')
-        # if not os.path.exists(self.progress_output_dir):
-        #     os.makedirs(self.progress_output_dir)
-
-        self._bag_name = None
-        if self.input_method == 'dataset':
-            self._bag_name = self.dataset_name
-        elif self.input_method == 'topic':
-            self._bag_name = self.vehicle_name
-        else:
-            raise Exception('get no input method!')
-
-        # init vm_update
-        self._vm = VM(self.api_key, self._bag_name, self.reviewer, self.url, self.dir_output, self.cam_id)
+        if not os.path.exists(self.data_dir):
+            mkdir(self.data_dir)
+        if not os.path.exists(self.progress_output_dir):
+            mkdir(self.progress_output_dir)
 
     @staticmethod
     def _build_term_crit(choices):
@@ -279,68 +243,6 @@ class Calibrator:
         corner_coords = np.repeat(corner_coord[None, :], corners_list_len, axis=0).astype(np.float32)
         corner_coords *= self.corner_distance
         return corner_coords     
-
-    def _optimize_param_multithr(self, candidate_idx, idx_list, intrinsic_results, corners, img_shape):
-        num_worker = cpu_count()
-
-        if self.num_thread > (num_worker - 2):
-            thread_num = num_worker - 2
-        else:
-            thread_num = self.num_thread
-
-        # MLE using opencv for all candidate K
-        intrinsic_lst = [intrinsic_results[i] for i in candidate_idx]
-        idx_batch = np.array(idx_list)[candidate_idx]
-        corners_x_lst = [corners[0][i] for i in idx_batch]
-        corners_y_lst = [corners[1][i] for i in idx_batch]
-        chunksize = max(len(candidate_idx)/thread_num, 1)
-
-        pool = ThreadPool(thread_num)
-        res_lst = pool.map(partial(self._optimize_param, img_shape=img_shape),
-                           zip(intrinsic_lst, corners_x_lst, corners_y_lst),
-                           chunksize=chunksize)
-
-        pool.close()
-        pool.join()
-
-        k_list, distort_list, ret_list, r_list, t_list = [], [], [], [], []
-        for res in res_lst:
-            ret_list += [res[0]]
-            k_list += [res[1]]
-            distort_list += [res[2][0]]
-            r_list += [res[3]]
-            t_list += [res[4]]
-        id_list = idx_batch.tolist()
-
-        candidate_indices, reproj_list = \
-            self.select_candidate_by_reprojection_err(k_list, distort_list, ret_list, r_list, t_list,
-                                                      id_list, corners, self.verbose, candidate_num=5)
-        idx = candidate_indices[np.argmin(np.abs(reproj_list))]
-        k_list = np.array(k_list)
-
-        # # get the result base on the biggest second eigen value
-        # self.select_candiate_by_2nd_smallest_eignvalue(candidate_idx, idx_list, k_list, r_list, t_list,
-        #                                                distort_list, corners, ret_list)
-
-        # get the result
-        fx, fy, u, v = intrinsic_results[idx]
-        rls_k_mat = np.array([[fx, 0, u],
-                              [0, fy, v],
-                              [0, 0, 1]])
-
-        opt_k_mat = k_list[idx]
-        opt_distortion = distort_list[idx]
-
-        print ("-----------rls K------------")
-        print (rls_k_mat)
-        print ("-----------opt K------------")
-        print (opt_k_mat)
-        print ("-------------D--------------")
-        print (opt_distortion)
-        print ('reprojection error: {}'.format(ret_list[idx]))
-
-        return rls_k_mat, opt_k_mat, opt_distortion, k_list, distort_list, \
-               r_list, t_list, id_list, ret_list, ret_list[idx] 
     
     def _get_intrinsic(self, homographies, intrinsic_init, reg=1e-8):
         """
@@ -370,68 +272,6 @@ class Calibrator:
         fx = np.sqrt(f[3] - f[1] + f[2] * v)
         fy = np.sqrt(1 / f[0]) * fx
         return [fx, fy, u, v]
-
-    def _optimize_param_multithr(self, candidate_idx, idx_list, intrinsic_results, corners, img_shape):
-        num_worker = cpu_count()
-
-        if self.num_thread > (num_worker - 2):
-            thread_num = num_worker - 2
-        else:
-            thread_num = self.num_thread
-
-        # MLE using opencv for all candidate K
-        intrinsic_lst = [intrinsic_results[i] for i in candidate_idx]
-        idx_batch = np.array(idx_list)[candidate_idx]
-        corners_x_lst = [corners[0][i] for i in idx_batch]
-        corners_y_lst = [corners[1][i] for i in idx_batch]
-        chunksize = max(len(candidate_idx)/thread_num, 1)
-
-        pool = ThreadPool(thread_num)
-        res_lst = pool.map(partial(self._optimize_param, img_shape=img_shape),
-                           zip(intrinsic_lst, corners_x_lst, corners_y_lst),
-                           chunksize=chunksize)
-
-        pool.close()
-        pool.join()
-
-        k_list, distort_list, ret_list, r_list, t_list = [], [], [], [], []
-        for res in res_lst:
-            ret_list += [res[0]]
-            k_list += [res[1]]
-            distort_list += [res[2][0]]
-            r_list += [res[3]]
-            t_list += [res[4]]
-        id_list = idx_batch.tolist()
-
-        candidate_indices, reproj_list = \
-            self.select_candidate_by_reprojection_err(k_list, distort_list, ret_list, r_list, t_list,
-                                                      id_list, corners, self.verbose, candidate_num=5)
-        idx = candidate_indices[np.argmin(np.abs(reproj_list))]
-        k_list = np.array(k_list)
-
-        # # get the result base on the biggest second eigen value
-        # self.select_candiate_by_2nd_smallest_eignvalue(candidate_idx, idx_list, k_list, r_list, t_list,
-        #                                                distort_list, corners, ret_list)
-
-        # get the result
-        fx, fy, u, v = intrinsic_results[idx]
-        rls_k_mat = np.array([[fx, 0, u],
-                              [0, fy, v],
-                              [0, 0, 1]])
-
-        opt_k_mat = k_list[idx]
-        opt_distortion = distort_list[idx]
-
-        print ("-----------rls K------------")
-        print (rls_k_mat)
-        print ("-----------opt K------------")
-        print (opt_k_mat)
-        print ("-------------D--------------")
-        print (opt_distortion)
-        print ('reprojection error: {}'.format(ret_list[idx]))
-
-        return rls_k_mat, opt_k_mat, opt_distortion, k_list, distort_list, \
-               r_list, t_list, id_list, ret_list, ret_list[idx]
 
     def _save_cluster(self, kmeans_labels, img_names):
         print("Saving the clustered images")
@@ -715,14 +555,8 @@ class Calibrator:
         print ("Saving camera-{} intrinsic parameters of {}...".format(self.cam_id, self.vehicle_name))
         params_res = save_params(self.data_dir, self._bag_name, self.cam_id, opt_k, opt_distortion,
                     img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, 
-                    self.cam_config.get('focal_length'), self.vehicle_name)
+                    self.cam_config.get('focal_length'), self.vehicle_name, self.cam_type)
         print ("Save in local is Done!")
-
-        # Update VM after calibration
-        # self._vm.update_intrinsic()
-        # vm_update_res = self._vm.update_config_yaml()
-        # print("Update VM is Done!")
-        # print(vm_update_res)
 
 
 ## for test

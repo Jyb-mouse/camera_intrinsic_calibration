@@ -6,15 +6,15 @@ import cv2 as cv
 import math
 import scipy.ndimage
 
-from .board import ChessBoard, RingBoard
+from board import ChessBoard, RingBoard
 
 
 
-class PatternInfo:
+class PatternInfo(object):
     #findChessboardCornersSB()
     # TODO: Temporarily does not support cv4
-    corner_flags_cv4 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FILTER_QUADS + cv.CALIB_CB_NORMALIZE_IMAGE
-    #corner_flags_cv4 = cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_EXHAUSTIVE + cv.CALIB_CB_ACCURACY
+    # corner_flags_cv4 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FILTER_QUADS + cv.CALIB_CB_NORMALIZE_IMAGE
+    corner_flags_cv4 = cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_EXHAUSTIVE + cv.CALIB_CB_ACCURACY
     #findChessboardCorners()
     corner_flags_cv2 = cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_FILTER_QUADS + cv.CALIB_CB_NORMALIZE_IMAGE
 
@@ -29,8 +29,9 @@ class PatternInfo:
 
         pattern_cfg = cfg.get('pattern')
         self.is_ring = pattern_cfg.get('is_ring', False)
-        self.board = ChessBoard(eval(pattern_cfg.get('pattern_shape')),
-                                float(pattern_cfg.get('corner_distance')))
+        self.pattern_shape = eval(pattern_cfg.get('pattern_shape'))
+        self.corner_distance = float(pattern_cfg.get('corner_distance'))
+        self.board = ChessBoard(self.pattern_shape, self.corner_distance)
 
         self.refine = True
 
@@ -272,7 +273,7 @@ class PatternInfo:
         if not find:
             return find, corners
         if self.is_using_cv4:
-            find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv4)
+            find, corners = cv.findChessboardCornersSB(gray, pattern_shape, flags=self.corner_flags_cv4)
         else:
             find, corners = cv.findChessboardCorners(gray, pattern_shape, flags=self.corner_flags_cv2)
         if not find:
