@@ -62,9 +62,9 @@ def flip_intrinsic(intrinsic, override=False):
     return mat_intr
 
 
-def save_params(output_file_path, bag_name, cam_id, intrinsic, distortion,
-                input_shape, output_shape, flip_input_img, flip_output_img,
-                reproj_err, focal_length, vehicle_name, cam_type):
+def save_params(output_file_path, bag_name, cam_id, intrinsic, distortion, undistort_k,
+                input_shape, undisdort_shape, output_shape, flip_input_img, flip_output_img,
+                reproj_err, focal_length, vehicle_name, cam_type, mapx, mapy):
 
     output_file_path = os.path.expanduser(output_file_path)
     if not os.path.exists(output_file_path):
@@ -83,11 +83,14 @@ def save_params(output_file_path, bag_name, cam_id, intrinsic, distortion,
 
     meta_dict = {'dir_name': bag_name, 'calibrate_date': datetime.now().strftime('%Y-%m-%d'),
                  'vehicle': vehicle_name,'reproj_err': reproj_err, 'focal_length': focal_length, 'cam_type': cam_type}
-    res_dict = {'distortion': [distortion.tolist()], 'intrinsic': intrinsic.tolist(),
+    res_dict = {'distortion': distortion.tolist(), 'intrinsic': intrinsic.tolist(), 'undistort_intrinsic':undistort_k.tolist(),
                 'width': int(output_shape[0]), 'height': int(output_shape[1]),
+                'undistort_width': int(undisdort_shape[0]), 'undistort_height': int(undisdort_shape[1]),
                 'meta': meta_dict}
     with open(os.path.join(output_file_path, 'camera-{}.yaml'.format(cam_id)), 'w') as f:
         yaml.safe_dump(res_dict, f)
+    np.savetxt(os.path.join(output_file_path, 'mapx.txt'), mapx)
+    np.savetxt(os.path.join(output_file_path, 'mapy.txt'), mapy)
     return res_dict
 
 def time2secs(time, ts_begin):

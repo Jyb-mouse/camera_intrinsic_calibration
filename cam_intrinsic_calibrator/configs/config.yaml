@@ -35,10 +35,10 @@ debug:
 
 #################################### User input ######################################
 camera:
-  img_shape: [1920, 1020]
-  output_img_shape: [1920, 1020]
-  id: 1
-  cam_type: HK_X8B
+  img_shape: [3840, 2160]
+  output_img_shape: [3840, 2160]
+  cam_id: 1
+  cam_type: SY_X8B
   flip_input_img: False           # *must, true only if the input images is vertically captured, e.g. for rear cameras.
   flip_output_img: False          # *must, set true for horizontally calibrated camera but will be vertically installed.
                                   #   e.g rear cams
@@ -50,11 +50,11 @@ camera:
 
 data:
   data_path: /mnt/share/lingboyu/output/intrinsic
-  vehicle_name: map-1                               
+  vehicle_name: new_GS4                               
   num_thread: 6
 
 pattern:
   is_ring: False
   pattern_shape: (7, 10)
-  corner_distance: 70
+  corner_distance: 50
 ################################################################################

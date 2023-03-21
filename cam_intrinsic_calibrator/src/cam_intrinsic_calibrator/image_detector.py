@@ -37,7 +37,7 @@ class ImageDetector(object):
                 newDir=os.path.join(dir_path,s)
                 self.get_image_list(newDir, ext)
     
-    def _draw_pattern_axis(self, find, corners, img):
+    def _draw_pattern_axis(self, find, corners, img, image_name):
         """
         draw the axis of pattern coordinate system on the image
         """
@@ -60,7 +60,7 @@ class ImageDetector(object):
                             (0, 0, 255),
                             -1)
         cv.drawChessboardCorners(img, shape, corners, find)
-        cv.imshow('corners', cv.resize(img, (960, 510)))
+        cv.imshow(image_name, cv.resize(img, (960, 510)))
         cv.waitKey(0)
         return img
     
@@ -71,11 +71,12 @@ class ImageDetector(object):
             img_show = np.zeros(img.shape, np.uint8)
             img_show = img.copy()
             find, corners, params = self.pattern_info.get_pattern_info(img)
-            self._draw_pattern_axis(find, corners, img_show)
+            self._draw_pattern_axis(find, corners, img_show, image_name)
             if find:
                 self.img_corners_list.append(corners)
                 self.img_name_list.append(image_name)
-        return self.img_corners_list, self.img_name_list, img_shape
+            cv.destroyAllWindows()
+        return np.array(self.img_corners_list), np.array(self.img_name_list), img_shape
 
 # # for test:
 # if __name__ == '__main__':

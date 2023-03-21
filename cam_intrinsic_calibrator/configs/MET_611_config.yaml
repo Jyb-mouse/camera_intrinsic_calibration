@@ -1,0 +1,9 @@
+focal_length: 6.2 # in mm
+
+# the following two fields are from manufactory
+# reference: https://www.ptgrey.com/blackfly-32-mp-color-gige-poe-sony-imx265-2
+# do NOT change unless necessary
+pixel_size: 4.2e-3      # in mm
+fov: 120                 # in degree
+film_shape: [1920, 1080] # in pixel
+undistort_shape: [3520, 1080]

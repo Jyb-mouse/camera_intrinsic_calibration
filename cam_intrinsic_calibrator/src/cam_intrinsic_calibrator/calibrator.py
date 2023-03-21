@@ -11,15 +11,15 @@ from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from calib_utils.io_utils import mkdir
 
-from .util import save_params, outliers_iqr, outliers_norm_std
+from util import save_params, outliers_iqr, outliers_norm_std
 
-from .board import ChessBoard
-from .detector_util import *
+from board import ChessBoard
+from detector_util import *
 
 class Calibrator:
     CV_TERM_CRITERIAS = (cv.TERM_CRITERIA_MAX_ITER, cv.TERM_CRITERIA_EPS)
 
-    cali_flags_short = cv.CALIB_USE_INTRINSIC_GUESS
+    cali_flags_short = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_RATIONAL_MODEL
     cali_flags_long = cv.CALIB_USE_INTRINSIC_GUESS + cv.CALIB_ZERO_TANGENT_DIST + \
                  cv.CALIB_FIX_K3 + cv.CALIB_FIX_K4 + cv.CALIB_FIX_K5 + cv.CALIB_FIX_K6 + \
                  cv.CALIB_FIX_K1 + cv.CALIB_FIX_K2
@@ -30,7 +30,8 @@ class Calibrator:
 
     def __init__(self, cfg_path):
 
-        cfg = yaml.safe_load(open(os.path.join(cfg_path,'config.yaml'), 'r'))
+        self.config_path = os.path.join(cfg_path,'config.yaml')
+        cfg = yaml.safe_load(open(self.config_path, 'r'))
         
         # set calib_crit
         self.cali_crit = self._build_term_crit(self.calib_crit)
@@ -62,13 +63,14 @@ class Calibrator:
 
         # set camera config name 
         camera_cfg_name = "{}_config.yaml".format(self.cam_type)
-        cam_cfg_path = os.path.join(os.path.dirname(cfg_path), camera_cfg_name)
+        cam_cfg_path = os.path.join(cfg_path,  camera_cfg_name)
         self.cam_config = yaml.safe_load(open(cam_cfg_path, 'r'))
+        self.undistort_shape = self.cam_config['undistort_shape']
 
         # setup data config
         data_cfg = cfg.get('data')
         self.num_thread = data_cfg.get('num_thread')
-        self.dir_output = data_cfg.get('output_dir')
+        self.dir_output = os.path.join(data_cfg.get('data_path'), 'output')
         self.input_method = data_cfg.get('input_method')
         self.vehicle_name = data_cfg.get('vehicle_name')
 
@@ -500,6 +502,12 @@ class Calibrator:
 
         return homographies, corners, img_names, id_list, success
     
+    def get_undistort_k(self, k, distortion, ori_shape, undis_shape):
+        newcameramatrix, _ = cv.getOptimalNewCameraMatrix(
+                           k, distortion, tuple(ori_shape), 0, tuple(undis_shape), 1)
+        mapx, mapy = cv.initUndistortRectifyMap(k, distortion, None, newcameramatrix, tuple(undis_shape), cv.CV_32FC1)
+        return newcameramatrix, mapx, mapy
+    
     def calibrate(self, corners_list, img_names, img_shape):
   
         success= False
@@ -550,12 +558,14 @@ class Calibrator:
 
             iter_num += 1
             print ("----------------------")
+        
+        undistort_k, mapx, mapy = self.get_undistort_k(opt_k, opt_distortion, img_shape, self.undistort_shape)
 
         # Save results after calibration
         print ("Saving camera-{} intrinsic parameters of {}...".format(self.cam_id, self.vehicle_name))
-        params_res = save_params(self.data_dir, self._bag_name, self.cam_id, opt_k, opt_distortion,
-                    img_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, 
-                    self.cam_config.get('focal_length'), self.vehicle_name, self.cam_type)
+        params_res = save_params(self.data_dir, self._bag_name, self.cam_id, opt_k, opt_distortion, undistort_k,
+                    img_shape, self.undistort_shape, self.output_img_shape, self.flip_input_img, self.flip_output_img, err, 
+                    self.cam_config.get('focal_length'), self.vehicle_name, self.cam_type, mapx, mapy)
         print ("Save in local is Done!")
 
 
