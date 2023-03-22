@@ -6,3 +6,4 @@ focal_length: 5.07 # in mm
 pixel_size: 2.1e-3      # in mm
 fov: 121                 # in degree
 film_shape: [3840, 2160] # in pixel
+undistort_shape: [7200, 2400]

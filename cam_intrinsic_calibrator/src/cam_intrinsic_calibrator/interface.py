@@ -19,7 +19,7 @@ class Interface(object):
 
 # for test:
 if __name__ == '__main__':
-    img_path = '/home/lingbo/Documents/intrinsic/new_gs4/senyun_x8b_2'
+    img_path = '/home/mouse/Documents/intrinsic/front_left_cam'
     interface = Interface(img_path) 
     interface.process()
  

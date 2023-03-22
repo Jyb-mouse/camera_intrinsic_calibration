@@ -1,3 +1,10 @@
+'''
+Author: jin yanbin
+email: jinyanbin@maxieyetech.com
+Date: 2023-03-21 18:05:15
+LastEditTime: 2023-03-21 18:11:13
+filePath: Do not edit
+'''
 import os
 import cv2 as cv
 import numpy as np
@@ -14,7 +21,7 @@ class ImageDetector(object):
         self.img_name_list = []
         self.img_shape = None
 
-        self.get_image_list(self.image_path, 'png')
+        self.get_image_list(self.image_path, 'jpg')
         self.img_list.sort()
         if len(self.img_list) < 10:
             raise Exception("images not enough!")
@@ -44,21 +51,21 @@ class ImageDetector(object):
         shape = self.pattern_info.pattern_shape
         if find:
             corner = tuple(corners[0].ravel())
-            img = cv.line(img,
-                          corner,
-                          tuple(corners[1].ravel()),
-                          (255, 0, 0), # x axis is blue
-                          4)
-            img = cv.line(img,
-                          corner,
-                          tuple(corners[shape[0]].ravel()),
-                          (0, 255, 0), # y axis is green
-                          4)
-            img = cv.circle(img,
-                            corner,
-                            4,
-                            (0, 0, 255),
-                            -1)
+            # img = cv.line(img,
+            #               corner,
+            #               tuple(corners[1].ravel()),
+            #               (255, 0, 0), # x axis is blue
+            #               4)
+            # img = cv.line(img,
+            #               corner,
+            #               tuple(corners[shape[0]].ravel()),
+            #               (0, 255, 0), # y axis is green
+            #               4)
+            # img = cv.circle(img,
+            #                 corner,
+            #                 4,
+            #                 (0, 0, 255),
+            #                 -1)
         cv.drawChessboardCorners(img, shape, corners, find)
         cv.imshow(image_name, cv.resize(img, (960, 510)))
         cv.waitKey(0)
