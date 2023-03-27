@@ -49,7 +49,7 @@ camera:
   # capture vertically, use vertically: flip_input_img = True, flip_output_img = True 
 
 data:
-  data_path: /mnt/share/lingboyu/output/intrinsic
+  data_path: /home/mouse/output_ws/camera_intrinsic
   vehicle_name: GS4                               
   num_thread: 6
 
